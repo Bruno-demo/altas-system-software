@@ -2,13 +2,8 @@
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
 
-// What this does: generates invoice number like ALT-2026-000001 (simple local approach)
-async function generateInvoiceNo(tx) {
-  const year = new Date().getFullYear();
-  const prefix = `ALT-${year}-`;
-
-  // Use max existing invoice suffix instead of yearly count.
-  // This avoids duplicate invoiceNo when older rows were deleted.
+// What this does: finds the latest numeric invoice suffix for a given prefix.
+async function getLastInvoiceNumberForPrefix(tx, prefix) {
   const last = await tx.sale.findFirst({
     where: {
       invoiceNo: { startsWith: prefix },
@@ -17,17 +12,42 @@ async function generateInvoiceNo(tx) {
     select: { invoiceNo: true },
   });
 
-  let lastNumber = 0;
-  if (last?.invoiceNo) {
-    const raw = String(last.invoiceNo).slice(prefix.length).trim();
-    const parsed = Number(raw);
-    if (Number.isInteger(parsed) && parsed > 0) {
-      lastNumber = parsed;
-    }
+  if (!last?.invoiceNo) return 0;
+
+  const raw = String(last.invoiceNo).slice(prefix.length).trim();
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+// What this does: generates invoice number like ALT-2026-000001 using an atomic yearly counter.
+async function generateInvoiceNo(tx) {
+  const year = new Date().getFullYear();
+  const prefix = `ALT-${year}-`;
+  const counterId = `invoiceNo:${year}`;
+
+  // Sync counter with existing data so legacy records do not cause collisions.
+  const lastNumber = await getLastInvoiceNumberForPrefix(tx, prefix);
+  const counter = await tx.counter.upsert({
+    where: { id: counterId },
+    create: { id: counterId, value: lastNumber },
+    update: {},
+    select: { value: true },
+  });
+
+  if (counter.value < lastNumber) {
+    await tx.counter.update({
+      where: { id: counterId },
+      data: { value: lastNumber },
+    });
   }
 
-  const next = String(lastNumber + 1).padStart(6, "0");
-  return `${prefix}${next}`;
+  const nextCounter = await tx.counter.update({
+    where: { id: counterId },
+    data: { value: { increment: 1 } },
+    select: { value: true },
+  });
+
+  return `${prefix}${String(nextCounter.value).padStart(6, "0")}`;
 }
 
 // -------------------------------

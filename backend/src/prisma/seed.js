@@ -862,6 +862,7 @@ async function main() {
   // ===== Counters =====
   await createManyInChunks(prisma.counter, [
     { id: "invoiceNo", value: TARGET.SALES },
+    { id: "invoiceNo:2026", value: TARGET.SALES },
     { id: "promotionNo", value: TARGET.PROMOTIONS },
     { id: "salesSdcNo", value: TARGET.SDC_ROWS },
     { id: "payrollRunNo", value: TARGET.PAYROLL_RUNS },
