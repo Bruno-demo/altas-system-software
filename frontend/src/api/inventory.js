@@ -10,6 +10,9 @@ export const getProductAvailability = (productId, params) =>
 
 export const listLocations = () => api.get("/api/locations");
 export const createLocation = (payload) => api.post("/api/locations", payload);
+export const updateLocation = (id, payload) =>
+  api.put(`/api/locations/${id}`, payload);
+export const deleteLocation = (id) => api.delete(`/api/locations/${id}`);
 
 export const listBins = (params) => api.get("/api/bins", { params });
 export const createBin = (payload) => api.post("/api/bins", payload);

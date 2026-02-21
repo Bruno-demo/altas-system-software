@@ -7,18 +7,26 @@ async function generateInvoiceNo(tx) {
   const year = new Date().getFullYear();
   const prefix = `ALT-${year}-`;
 
-  // Count sales in the year to generate next number
-  // Note: good enough for local single-machine; if multi-branch later we can improve.
-  const count = await tx.sale.count({
+  // Use max existing invoice suffix instead of yearly count.
+  // This avoids duplicate invoiceNo when older rows were deleted.
+  const last = await tx.sale.findFirst({
     where: {
-      createdAt: {
-        gte: new Date(`${year}-01-01T00:00:00.000Z`),
-        lte: new Date(`${year}-12-31T23:59:59.999Z`),
-      },
+      invoiceNo: { startsWith: prefix },
     },
+    orderBy: { invoiceNo: "desc" },
+    select: { invoiceNo: true },
   });
 
-  const next = String(count + 1).padStart(6, "0");
+  let lastNumber = 0;
+  if (last?.invoiceNo) {
+    const raw = String(last.invoiceNo).slice(prefix.length).trim();
+    const parsed = Number(raw);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      lastNumber = parsed;
+    }
+  }
+
+  const next = String(lastNumber + 1).padStart(6, "0");
   return `${prefix}${next}`;
 }
 

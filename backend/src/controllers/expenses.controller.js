@@ -36,18 +36,74 @@ function parseISODateOnly(dateStr, fieldName = "date") {
   return d;
 }
 
-function parseRange(q) {
-  // What this does: supports ?from=YYYY-MM-DD&to=YYYY-MM-DD
-  if (!q.from || !q.to) return null;
+function resolveRange(query, { required = false } = {}) {
+  // What this does: supports either ?from=YYYY-MM-DD&to=YYYY-MM-DD OR period shortcuts
+  const fromRaw = s(query.from);
+  const toRaw = s(query.to);
 
-  const fromStr = String(q.from).trim();
-  const toStr = String(q.to).trim();
+  if (fromRaw || toRaw) {
+    if (!fromRaw || !toRaw) {
+      const err = new Error("Both from and to are required when using custom range");
+      err.status = 400;
+      throw err;
+    }
 
-  const from = parseISODateOnly(fromStr, "from");
-  const toStart = parseISODateOnly(toStr, "to");
-  const toEnd = new Date(toStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const start = parseISODateOnly(fromRaw, "from");
+    const toStart = parseISODateOnly(toRaw, "to");
+    const end = new Date(toStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 
-  return { fromStr, toStr, from, toEnd };
+    return { from: fromRaw, to: toRaw, period: null, start, end };
+  }
+
+  const periodRaw = s(query.period);
+  if (!periodRaw) {
+    if (!required) return null;
+    const err = new Error("Provide either from/to or period=today|this_week|this_month|this_year|all");
+    err.status = 400;
+    throw err;
+  }
+
+  const now = new Date();
+  const p = periodRaw.toLowerCase();
+
+  let startDate;
+  let endDate;
+
+  if (p === "today") {
+    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (p === "this_week") {
+    const day = now.getDay(); // 0 Sun ... 6 Sat
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+    endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 6);
+  } else if (p === "this_month") {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  } else if (p === "this_year") {
+    startDate = new Date(now.getFullYear(), 0, 1);
+    endDate = new Date(now.getFullYear(), 11, 31);
+  } else if (p === "all") {
+    startDate = new Date(2000, 0, 1);
+    endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else {
+    const err = new Error("period must be today|this_week|this_month|this_year|all");
+    err.status = 400;
+    throw err;
+  }
+
+  const from = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(
+    startDate.getDate()
+  ).padStart(2, "0")}`;
+  const to = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(
+    endDate.getDate()
+  ).padStart(2, "0")}`;
+
+  const start = parseISODateOnly(from, "from");
+  const toStart = parseISODateOnly(to, "to");
+  const end = new Date(toStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+  return { from, to, period: p, start, end };
 }
 
 function styleHeaderRow(ws) {
@@ -241,8 +297,8 @@ exports.listExpenses = async (req, res) => {
 
     const where = { isDeleted: false };
 
-    const range = parseRange(req.query);
-    if (range) where.date = { gte: range.from, lte: range.toEnd };
+    const range = resolveRange(req.query);
+    if (range) where.date = { gte: range.start, lte: range.end };
 
     if (req.query.category) where.category = String(req.query.category).trim().toUpperCase();
     if (req.query.paymentMethod) where.paymentMethod = String(req.query.paymentMethod).trim().toUpperCase();
@@ -256,11 +312,11 @@ exports.listExpenses = async (req, res) => {
       ];
     }
 
-    const [total, rows] = await prisma.$transaction([
+    const [total, rows, totalsAgg] = await prisma.$transaction([
       prisma.expense.count({ where }),
       prisma.expense.findMany({
         where,
-        orderBy: { date: "desc" },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
         skip,
         take: limit,
         include: {
@@ -269,10 +325,19 @@ exports.listExpenses = async (req, res) => {
           deletedBy: { select: { id: true, fullName: true, role: true } },
         },
       }),
+      prisma.expense.aggregate({
+        where,
+        _sum: { amount: true },
+      }),
     ]);
 
     return res.json({
-      meta: { total, page, limit, pages: Math.ceil(total / limit) },
+      range: range ? { from: range.from, to: range.to, period: range.period } : null,
+      meta: { total, page, limit, pages: Math.max(Math.ceil(total / limit), 1) },
+      totals: {
+        count: total,
+        amount: round2(totalsAgg._sum.amount || 0),
+      },
       rows,
     });
   } catch (err) {
@@ -283,10 +348,11 @@ exports.listExpenses = async (req, res) => {
 // ✅ GET /api/expenses/summary
 exports.expensesSummary = async (req, res) => {
   try {
-    const range = parseRange(req.query);
-    if (!range) return res.status(400).json({ message: "from and to are required (YYYY-MM-DD)" });
+    const range = resolveRange(req.query, { required: true });
 
-    const where = { isDeleted: false, date: { gte: range.from, lte: range.toEnd } };
+    const where = { isDeleted: false, date: { gte: range.start, lte: range.end } };
+    if (req.query.category) where.category = String(req.query.category).trim().toUpperCase();
+    if (req.query.paymentMethod) where.paymentMethod = String(req.query.paymentMethod).trim().toUpperCase();
 
     const [byCategory, byPayment, totalAgg] = await prisma.$transaction([
       prisma.expense.groupBy({
@@ -313,7 +379,7 @@ exports.expensesSummary = async (req, res) => {
     const total = round2(totalAgg._sum.amount || 0);
 
     return res.json({
-      range: { from: range.fromStr, to: range.toStr },
+      range: { from: range.from, to: range.to, period: range.period },
       total: { count: totalAgg._count._all, amount: total },
       byCategory: byCategory.map((x) => ({
         category: x.category,
@@ -334,10 +400,9 @@ exports.expensesSummary = async (req, res) => {
 // ✅ GET /api/expenses/export/excel?from=YYYY-MM-DD&to=YYYY-MM-DD&category=&paymentMethod=
 exports.exportExpensesExcel = async (req, res) => {
   try {
-    const range = parseRange(req.query);
-    if (!range) return res.status(400).json({ message: "from and to are required (YYYY-MM-DD)" });
+    const range = resolveRange(req.query, { required: true });
 
-    const where = { isDeleted: false, date: { gte: range.from, lte: range.toEnd } };
+    const where = { isDeleted: false, date: { gte: range.start, lte: range.end } };
 
     if (req.query.category) where.category = String(req.query.category).trim().toUpperCase();
     if (req.query.paymentMethod) where.paymentMethod = String(req.query.paymentMethod).trim().toUpperCase();
@@ -412,7 +477,7 @@ exports.exportExpensesExcel = async (req, res) => {
       });
     });
 
-    const filename = `ALTAS_Expenses_${range.fromStr}_to_${range.toStr}.xlsx`;
+    const filename = `ALTAS_Expenses_${range.from}_to_${range.to}.xlsx`;
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 

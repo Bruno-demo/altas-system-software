@@ -1,6 +1,10 @@
 // What this does: creates products and lists/searches products for spare parts (brand, category, compatibility)
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
+const {
+  findBranchCounterByName,
+  parseCounterValue,
+} = require("../utils/branchMinStock");
 
 // What this does: allowed categories for your moto spare parts shop
 const ALLOWED_CATEGORIES = ["Brake", "Chain", "Engine", "Electrical", "Motorbike"];
@@ -94,6 +98,20 @@ exports.createProduct = async (req, res) => {
       }
     }
 
+    let minStockValue = 0;
+    if (minStock != null && String(minStock).trim() !== "") {
+      const parsed = Number(minStock);
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        return res.status(400).json({ message: "minStock must be an integer >= 0" });
+      }
+      minStockValue = parsed;
+    } else if (isMotorbike && branchValue) {
+      const branchCounter = await findBranchCounterByName(prisma, branchValue);
+      if (branchCounter) {
+        minStockValue = parseCounterValue(branchCounter.value);
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
         sku: finalSku,
@@ -102,7 +120,7 @@ exports.createProduct = async (req, res) => {
         unit: unitValue,
         costPrice: String(costPrice),
         sellPrice: String(sellPrice),
-        minStock: minStock != null ? Number(minStock) : 0,
+        minStock: minStockValue,
         brand: brand ? String(brand).trim() : null,
         category: categoryValue,
         modelCompatibility: modelCompatibilityValue,
@@ -134,7 +152,7 @@ exports.createProduct = async (req, res) => {
 
 exports.listProducts = async (req, res) => {
   try {
-    const { q, category, brand } = req.query;
+    const { q, category, brand, branchName } = req.query;
 
     const where = {
       isActive: true,
@@ -149,6 +167,14 @@ exports.listProducts = async (req, res) => {
       where.category = String(category).trim();
     }
     if (brand) where.brand = { contains: String(brand).trim(), mode: "insensitive" };
+    if (branchName) {
+      const branchValue = String(branchName).trim();
+      if (branchValue.toLowerCase() === "unassigned") {
+        where.branchName = null;
+      } else {
+        where.branchName = { equals: branchValue, mode: "insensitive" };
+      }
+    }
 
     // What this does: search by sku, partNumber, name, brand, category, modelCompatibility
     if (q) {
@@ -205,7 +231,13 @@ exports.updateProduct = async (req, res) => {
     if (req.body.unit != null) data.unit = isMotorbike ? "unit" : String(req.body.unit).trim();
     if (req.body.costPrice != null) data.costPrice = String(req.body.costPrice);
     if (req.body.sellPrice != null) data.sellPrice = String(req.body.sellPrice);
-    if (req.body.minStock != null) data.minStock = Number(req.body.minStock);
+    if (req.body.minStock != null) {
+      const parsed = Number(req.body.minStock);
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        return res.status(400).json({ message: "minStock must be an integer >= 0" });
+      }
+      data.minStock = parsed;
+    }
     if (req.body.brand != null) data.brand = req.body.brand ? String(req.body.brand).trim() : null;
     if (req.body.modelCompatibility != null) {
       data.modelCompatibility = isMotorbike
@@ -266,6 +298,12 @@ exports.updateProduct = async (req, res) => {
         return res
           .status(400)
           .json({ message: "branchName is required for Motorbike created by Salesperson" });
+      }
+      if (req.body.minStock == null) {
+        const branchCounter = await findBranchCounterByName(prisma, nextBranch);
+        if (branchCounter) {
+          data.minStock = parseCounterValue(branchCounter.value);
+        }
       }
     }
 

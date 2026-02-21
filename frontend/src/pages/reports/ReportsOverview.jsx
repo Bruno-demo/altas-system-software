@@ -64,6 +64,24 @@ export default function ReportsOverview() {
     load();
   }, [filters]);
 
+  const cashInflow = cashflow?.inflow?.salesTotal ?? cashflow?.totals?.inflow ?? 0;
+  const cashOutflow =
+    cashflow?.outflow?.expensesTotal ??
+    cashflow?.outflow?.total ??
+    cashflow?.totals?.outflow ??
+    cashflow?.outflow?.stockPurchasesEstimated ??
+    0;
+  const cashNet =
+    cashflow?.net ??
+    cashflow?.totals?.net ??
+    (Number(cashInflow || 0) - Number(cashOutflow || 0));
+  const cashOutflowLabel =
+    cashflow?.outflow?.expensesTotal != null ||
+    cashflow?.outflow?.total != null ||
+    cashflow?.totals?.outflow != null
+      ? "Outflow (Expenses)"
+      : "Outflow (Est.)";
+
   return (
     <div className="page">
       <div className="page-header">
@@ -72,6 +90,9 @@ export default function ReportsOverview() {
           <p className="muted">KPIs, sales health, and movement snapshots.</p>
         </div>
         <div className="button-row">
+          <Link className="button-outline" to="/reports/expenses">
+            Expenses
+          </Link>
           <Link className="button-outline" to="/reports/sales">
             Sales Reports
           </Link>
@@ -186,17 +207,15 @@ export default function ReportsOverview() {
             <div className="stat-grid">
               <div>
                 <div className="stat-label">Inflow</div>
-                <div className="stat-value">{cashflow.inflow?.salesTotal}</div>
+                <div className="stat-value">{cashInflow}</div>
               </div>
               <div>
-                <div className="stat-label">Outflow (Est.)</div>
-                <div className="stat-value">
-                  {cashflow.outflow?.stockPurchasesEstimated}
-                </div>
+                <div className="stat-label">{cashOutflowLabel}</div>
+                <div className="stat-value">{cashOutflow}</div>
               </div>
               <div>
                 <div className="stat-label">Net</div>
-                <div className="stat-value">{cashflow.net}</div>
+                <div className="stat-value">{cashNet}</div>
               </div>
             </div>
           ) : (

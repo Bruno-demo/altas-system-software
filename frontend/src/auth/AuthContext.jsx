@@ -3,19 +3,38 @@ import { createContext, useContext, useMemo, useState } from "react";
 
 const AuthCtx = createContext(null);
 
+function normalizeRole(role) {
+  return String(role || "").trim().toUpperCase();
+}
+
+function normalizeUser(user) {
+  if (!user || typeof user !== "object") return null;
+  return {
+    ...user,
+    role: normalizeRole(user.role),
+  };
+}
+
 export const AuthProvider = ({ children }) => {
   // What this does: initializes from localStorage so refresh doesn't log out
   const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [user, setUser] = useState(() => {
     const raw = localStorage.getItem("user");
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    try {
+      return normalizeUser(JSON.parse(raw));
+    } catch {
+      localStorage.removeItem("user");
+      return null;
+    }
   });
 
   const login = ({ token: nextToken, user: nextUser }) => {
+    const safeUser = normalizeUser(nextUser);
     setToken(nextToken);
-    setUser(nextUser);
+    setUser(safeUser);
     localStorage.setItem("token", nextToken);
-    localStorage.setItem("user", JSON.stringify(nextUser));
+    localStorage.setItem("user", JSON.stringify(safeUser));
   };
 
   const logout = () => {

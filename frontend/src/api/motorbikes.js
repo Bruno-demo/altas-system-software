@@ -22,3 +22,6 @@ export const listBranches = (params) =>
 
 export const getBranchDetail = (params) =>
   api.get("/api/motorbikes/branches/detail", { params });
+
+export const updateBranchSettings = (payload) =>
+  api.put("/api/motorbikes/branches/settings", payload);

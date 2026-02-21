@@ -6,6 +6,7 @@ const allowRoles = require("../middleware/roles");
 const {
   listBranches,
   getBranchDetail,
+  updateBranchSettings,
 } = require("../controllers/motorbike.branch.controller");
 const {
   listPromotions,
@@ -27,6 +28,12 @@ router.get(
   auth,
   allowRoles("SALESPERSON", "MANAGER", "CEO"),
   getBranchDetail
+);
+router.put(
+  "/branches/settings",
+  auth,
+  allowRoles("SALESPERSON", "MANAGER", "CEO"),
+  updateBranchSettings
 );
 
 router.get(

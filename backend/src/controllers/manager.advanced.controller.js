@@ -132,6 +132,13 @@ exports.kpis = async (req, res) => {
         where: { createdAt: { gte: start, lte: end } },
       });
 
+      // Expenses outflow in selected period (ignore soft-deleted)
+      const expensesAgg = await tx.expense.aggregate({
+        where: { isDeleted: false, date: { gte: start, lte: end } },
+        _sum: { amount: true },
+        _count: { _all: true },
+      });
+
       // Best sellers by quantity
       const best = await tx.saleItem.groupBy({
         by: ["productId"],
@@ -192,6 +199,8 @@ exports.kpis = async (req, res) => {
         payments,
         ebm,
         returnsCount,
+        expensesTotal: n(expensesAgg._sum.amount),
+        expensesCount: expensesAgg._count._all,
         best,
         pMap,
         estimatedCogs,
@@ -206,6 +215,9 @@ exports.kpis = async (req, res) => {
         revenue: round2(result.revenue),
         estimatedCogs: round2(result.estimatedCogs),
         profitEstimate: round2(result.revenue - result.estimatedCogs),
+        expensesTotal: round2(result.expensesTotal),
+        netAfterExpenses: round2(result.revenue - result.expensesTotal),
+        expensesCount: result.expensesCount,
         returnsCount: result.returnsCount,
       },
       paymentSplit: result.payments.map((x) => ({

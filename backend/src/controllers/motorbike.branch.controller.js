@@ -1,6 +1,14 @@
-// What this does: provides branch-level summaries and detail views for motorbike sales
+// What this does: provides branch-level summaries/details and keeps min-stock settings synchronized.
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
+const {
+  normalizeBranchKey,
+  branchNameFromCounterId,
+  listBranchCounterRows,
+  parseCounterValue,
+  toBranchMinStockMap,
+  setBranchMinStock,
+} = require("../utils/branchMinStock");
 
 function s(v) {
   if (v == null) return null;
@@ -18,6 +26,10 @@ function normalizeBranchLabel(value) {
   return value || "Unassigned";
 }
 
+function branchMapKey(value) {
+  return normalizeBranchKey(value) || "__unassigned__";
+}
+
 function buildBranchFilter(branch) {
   const name = s(branch);
   if (!name) return { label: "Unassigned", filter: { branchName: null } };
@@ -30,6 +42,18 @@ function buildBranchFilter(branch) {
   };
 }
 
+function parseNonNegativeInteger(value, fieldName) {
+  const raw = s(value);
+  if (raw == null) return null;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    const err = new Error(`${fieldName} must be an integer >= 0`);
+    err.status = 400;
+    throw err;
+  }
+  return parsed;
+}
+
 exports.listBranches = async (req, res) => {
   try {
     const q = s(req.query.q)?.toLowerCase() || "";
@@ -37,45 +61,106 @@ exports.listBranches = async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
     const skip = (page - 1) * limit;
 
-    const [productGroups, promoGroups] = await prisma.$transaction([
+    const [locations, productGroups, promoGroups, counterRows] = await Promise.all([
+      prisma.location.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
       prisma.product.groupBy({
         by: ["branchName"],
         where: { category: "Motorbike", isActive: true },
         _count: { _all: true },
         _sum: { sellPrice: true },
+        _min: { minStock: true },
+        _max: { minStock: true },
       }),
       prisma.motorbikePromotion.groupBy({
         by: ["branchName"],
         _count: { _all: true },
         _max: { date: true },
       }),
+      listBranchCounterRows(prisma),
     ]);
 
+    const minStockMap = toBranchMinStockMap(counterRows);
     const map = new Map();
 
-    productGroups.forEach((row) => {
-      const label = normalizeBranchLabel(row.branchName);
-      map.set(label, {
-        branchName: label,
-        bikesCount: row._count?._all || 0,
-        bikesValue: toNum(row._sum?.sellPrice || 0),
-        soldCount: 0,
-        lastSoldAt: null,
-      });
-    });
-
-    promoGroups.forEach((row) => {
-      const label = normalizeBranchLabel(row.branchName);
-      const existing = map.get(label) || {
-        branchName: label,
+    locations.forEach((location) => {
+      const key = branchMapKey(location.name);
+      map.set(key, {
+        branchName: location.name,
+        locationId: location.id,
         bikesCount: 0,
         bikesValue: 0,
         soldCount: 0,
         lastSoldAt: null,
+        minStock: minStockMap.get(key) ?? 0,
+      });
+    });
+
+    productGroups.forEach((row) => {
+      const label = normalizeBranchLabel(row.branchName);
+      const key = branchMapKey(row.branchName);
+      const existing = map.get(key) || {
+        branchName: label,
+        locationId: null,
+        bikesCount: 0,
+        bikesValue: 0,
+        soldCount: 0,
+        lastSoldAt: null,
+        minStock: 0,
+      };
+
+      existing.bikesCount = row._count?._all || 0;
+      existing.bikesValue = toNum(row._sum?.sellPrice || 0);
+
+      if (minStockMap.has(key)) {
+        existing.minStock = minStockMap.get(key) ?? 0;
+      } else if (
+        row._min?.minStock != null &&
+        row._max?.minStock != null &&
+        row._min.minStock === row._max.minStock
+      ) {
+        existing.minStock = Number(row._max.minStock);
+      } else if (row._max?.minStock != null) {
+        existing.minStock = Number(row._max.minStock);
+      }
+
+      map.set(key, existing);
+    });
+
+    promoGroups.forEach((row) => {
+      const label = normalizeBranchLabel(row.branchName);
+      const key = branchMapKey(row.branchName);
+      const existing = map.get(key) || {
+        branchName: label,
+        locationId: null,
+        bikesCount: 0,
+        bikesValue: 0,
+        soldCount: 0,
+        lastSoldAt: null,
+        minStock: minStockMap.get(key) ?? 0,
       };
       existing.soldCount = row._count?._all || 0;
       existing.lastSoldAt = row._max?.date || null;
-      map.set(label, existing);
+      map.set(key, existing);
+    });
+
+    // What this does: keeps branches visible even if they currently have no bikes/sales, but have saved settings.
+    counterRows.forEach((row) => {
+      const rawBranch = branchNameFromCounterId(row.id);
+      const label = normalizeBranchLabel(rawBranch);
+      const key = branchMapKey(rawBranch);
+      if (map.has(key)) return;
+      map.set(key, {
+        branchName: label,
+        locationId: null,
+        bikesCount: 0,
+        bikesValue: 0,
+        soldCount: 0,
+        lastSoldAt: null,
+        minStock: parseCounterValue(row.value),
+      });
     });
 
     let branches = Array.from(map.values());
@@ -137,8 +222,8 @@ exports.getBranchDetail = async (req, res) => {
 
     const saleWhere = { ...filter };
 
-    const [bikeTotal, bikes, saleTotal, sales, lastSold] =
-      await prisma.$transaction([
+    const [result, counterRows, location] = await Promise.all([
+      prisma.$transaction([
         prisma.product.count({ where: bikeWhere }),
         prisma.product.findMany({
           where: bikeWhere,
@@ -157,14 +242,41 @@ exports.getBranchDetail = async (req, res) => {
           where: saleWhere,
           _max: { date: true },
         }),
-      ]);
+        prisma.product.aggregate({
+          where: {
+            category: "Motorbike",
+            isActive: true,
+            ...filter,
+          },
+          _min: { minStock: true },
+          _max: { minStock: true },
+        }),
+      ]),
+      listBranchCounterRows(prisma),
+      label === "Unassigned"
+        ? Promise.resolve(null)
+        : prisma.location.findFirst({
+            where: { name: { equals: label, mode: "insensitive" } },
+            select: { id: true, name: true },
+          }),
+    ]);
+
+    const [bikeTotal, bikes, saleTotal, sales, lastSold, minStockAgg] = result;
+    const minStockMap = toBranchMinStockMap(counterRows);
+    const counterMinStock = minStockMap.get(branchMapKey(label));
+    const resolvedMinStock =
+      counterMinStock != null
+        ? counterMinStock
+        : Number(minStockAgg?._max?.minStock ?? 0);
 
     return res.json({
       branch: {
         name: label,
+        locationId: location?.id || null,
         bikesCount: bikeTotal,
         soldCount: saleTotal,
         lastSoldAt: lastSold?._max?.date || null,
+        minStock: Number.isNaN(resolvedMinStock) ? 0 : resolvedMinStock,
       },
       bikes: {
         meta: {
@@ -187,5 +299,62 @@ exports.getBranchDetail = async (req, res) => {
     });
   } catch (err) {
     return handleError(res, err, { status: 500 });
+  }
+};
+
+exports.updateBranchSettings = async (req, res) => {
+  try {
+    const branchParam = s(req.body?.branch);
+    if (!branchParam) {
+      return res.status(400).json({ message: "branch is required" });
+    }
+
+    const minStock = parseNonNegativeInteger(req.body?.minStock, "minStock");
+    if (minStock == null) {
+      return res
+        .status(400)
+        .json({
+          message: "Provide at least one setting to update (minStock).",
+        });
+    }
+
+    const { label, filter } = buildBranchFilter(branchParam);
+    const where = {
+      category: "Motorbike",
+      isActive: true,
+      ...filter,
+    };
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.product.updateMany({
+        where,
+        data: {
+          minStock,
+        },
+      });
+
+      if (label !== "Unassigned") {
+        await setBranchMinStock(tx, label, minStock);
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: "UPDATE_BRANCH_SETTINGS",
+          details: `Branch=${label} | minStock=${minStock} | updatedProducts=${updated.count}`,
+        },
+      });
+
+      return updated;
+    });
+
+    return res.json({
+      message: "Branch settings updated.",
+      branch: label,
+      updatedProducts: result.count,
+      applied: { minStock },
+    });
+  } catch (err) {
+    return handleError(res, err, { status: err.status || 500 });
   }
 };

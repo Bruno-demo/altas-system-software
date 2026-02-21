@@ -1,6 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getBranchDetail, listBranches } from "../../api/motorbikes";
+import {
+  getBranchDetail,
+  listBranches,
+  updateBranchSettings,
+} from "../../api/motorbikes";
+import {
+  createLocation,
+  updateLocation,
+  deleteLocation,
+} from "../../api/inventory";
 import { useAuth } from "../../auth/AuthContext";
 
 function money(n) {
@@ -14,6 +23,12 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleDateString("en-GB");
+}
+
+function parseMinStock(value) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return null;
+  return parsed;
 }
 
 export default function Branches() {
@@ -42,6 +57,16 @@ export default function Branches() {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  const [locationForm, setLocationForm] = useState({
+    name: "",
+    minStock: "0",
+  });
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationMessage, setLocationMessage] = useState("");
+  const [locationSuccess, setLocationSuccess] = useState("");
+
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
   const branchPages = meta?.pages || 1;
   const bikePages = detail?.bikes?.meta?.pages || 1;
   const salePages = detail?.sales?.meta?.pages || 1;
@@ -51,7 +76,10 @@ export default function Branches() {
     [branches, selectedBranch]
   );
 
-  const loadBranches = async () => {
+  const selectedLocationId =
+    selectedSummary?.locationId || detail?.branch?.locationId || "";
+
+  const loadBranches = async (preferredBranchName) => {
     setLoading(true);
     setMessage("");
     try {
@@ -59,8 +87,11 @@ export default function Branches() {
       const rows = res.data?.rows || [];
       setBranches(rows);
       setMeta(res.data?.meta || null);
-      const hasSelected = rows.some((row) => row.branchName === selectedBranch);
-      if (!hasSelected) {
+
+      const preferred = preferredBranchName || selectedBranch;
+      if (preferred && rows.some((row) => row.branchName === preferred)) {
+        setSelectedBranch(preferred);
+      } else {
         setSelectedBranch(rows[0]?.branchName || "");
       }
     } catch (err) {
@@ -71,7 +102,10 @@ export default function Branches() {
   };
 
   const loadDetail = async () => {
-    if (!selectedBranch) return;
+    if (!selectedBranch) {
+      setDetail(null);
+      return;
+    }
     setDetailLoading(true);
     setMessage("");
     try {
@@ -99,6 +133,41 @@ export default function Branches() {
     loadDetail();
   }, [selectedBranch, bikeQuery, bikePage, bikeLimit, salePage, saleLimit]);
 
+  useEffect(() => {
+    const minStockValue =
+      selectedSummary?.minStock ?? detail?.branch?.minStock ?? 0;
+
+    if (selectedLocationId) {
+      setLocationForm({
+        name: selectedSummary?.branchName || selectedBranch || "",
+        minStock: String(minStockValue),
+      });
+      return;
+    }
+
+    if (selectedBranch) {
+      setLocationForm({
+        name: selectedBranch,
+        minStock: String(minStockValue),
+      });
+      return;
+    }
+
+    setLocationForm({ name: "", minStock: "0" });
+  }, [
+    selectedBranch,
+    selectedLocationId,
+    selectedSummary?.branchName,
+    selectedSummary?.minStock,
+    detail?.branch?.minStock,
+  ]);
+
+  useEffect(() => {
+    if (!locationSuccess) return;
+    const timer = setTimeout(() => setLocationSuccess(""), 3000);
+    return () => clearTimeout(timer);
+  }, [locationSuccess]);
+
   const applySearch = (event) => {
     event.preventDefault();
     setPage(1);
@@ -117,6 +186,127 @@ export default function Branches() {
     setBikeSearchInput("");
     setBikePage(1);
     setSalePage(1);
+    setLocationMessage("");
+    setLocationSuccess("");
+  };
+
+  const applyBranchSettings = async (event) => {
+    event.preventDefault();
+    setLocationMessage("");
+    setLocationSuccess("");
+
+    if (!selectedBranch) {
+      setLocationMessage("Select a branch first.");
+      return;
+    }
+
+    const parsedMinStock = parseMinStock(locationForm.minStock);
+    if (parsedMinStock == null) {
+      setLocationMessage("Min stock must be an integer >= 0.");
+      return;
+    }
+
+    setSettingsLoading(true);
+    try {
+      await updateBranchSettings({
+        branch: selectedBranch,
+        minStock: parsedMinStock,
+      });
+      setLocationSuccess("Branch min stock applied to all motorbikes in this branch.");
+      await Promise.all([loadDetail(), loadBranches(selectedBranch)]);
+    } catch (err) {
+      setLocationMessage(
+        err?.response?.data?.message || "Failed to update branch settings."
+      );
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const saveLocation = async (event) => {
+    event.preventDefault();
+    setLocationMessage("");
+    setLocationSuccess("");
+
+    const name = String(locationForm.name || "").trim();
+    if (!name) {
+      setLocationMessage("Location name is required.");
+      return;
+    }
+
+    const parsedMinStock = parseMinStock(locationForm.minStock);
+    if (parsedMinStock == null) {
+      setLocationMessage("Min stock must be an integer >= 0.");
+      return;
+    }
+
+    setLocationLoading(true);
+    try {
+      if (selectedLocationId) {
+        await updateLocation(selectedLocationId, {
+          name,
+          minStock: parsedMinStock,
+        });
+        setLocationSuccess("Location updated and synchronized.");
+      } else {
+        await createLocation({
+          name,
+          minStock: parsedMinStock,
+        });
+        setLocationSuccess("Location created and synchronized.");
+      }
+
+      setSelectedBranch(name);
+      setPage(1);
+      await loadBranches(name);
+    } catch (err) {
+      const backendMessage = err?.response?.data?.message;
+      setLocationMessage(backendMessage || "Failed to save location.");
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const removeLocation = async () => {
+    setLocationMessage("");
+    setLocationSuccess("");
+
+    if (!selectedLocationId) {
+      setLocationMessage("Select a saved location to delete.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Delete location "${selectedSummary?.branchName || selectedBranch}"?\nThis will unassign branch links from related motorbike records.`
+      )
+    ) {
+      return;
+    }
+
+    setLocationLoading(true);
+    try {
+      await deleteLocation(selectedLocationId);
+      setLocationSuccess("Location deleted. Branch links were synchronized.");
+      setDetail(null);
+      setSelectedBranch("");
+      setLocationForm({ name: "", minStock: "0" });
+      setPage(1);
+      await loadBranches();
+    } catch (err) {
+      const backendMessage = err?.response?.data?.message;
+      setLocationMessage(backendMessage || "Failed to delete location.");
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const resetLocationForm = () => {
+    setLocationMessage("");
+    setLocationSuccess("");
+    setSelectedBranch("");
+    setDetail(null);
+    setLocationForm({ name: "", minStock: "0" });
   };
 
   return (
@@ -125,7 +315,7 @@ export default function Branches() {
         <div>
           <h2>Branches</h2>
           <p className="muted">
-            Monitor branch performance and report motorbike sales.
+            Monitor branch performance and manage synchronized branch location settings.
           </p>
         </div>
         <div className="button-row">
@@ -204,6 +394,7 @@ export default function Branches() {
               <div>Branch</div>
               <div>Bikes</div>
               <div>Sold</div>
+              <div>Min Stock</div>
               <div>Last Sold</div>
             </div>
             {loading ? (
@@ -212,7 +403,7 @@ export default function Branches() {
               branches.map((row) => (
                 <button
                   type="button"
-                  key={row.branchName}
+                  key={`${row.branchName}:${row.locationId || "none"}`}
                   className={`data-row data-button branch-row ${
                     row.branchName === selectedBranch ? "data-selected" : ""
                   }`}
@@ -221,6 +412,7 @@ export default function Branches() {
                   <div>{row.branchName}</div>
                   <div>{row.bikesCount}</div>
                   <div>{row.soldCount}</div>
+                  <div>{row.minStock ?? 0}</div>
                   <div>{formatDate(row.lastSoldAt)}</div>
                 </button>
               ))
@@ -243,12 +435,83 @@ export default function Branches() {
             </button>
           </div>
 
+          <div className="table-toolbar">
+            <h4>Location Management</h4>
+            <div className="button-row">
+              <button
+                type="button"
+                className="button-outline"
+                onClick={resetLocationForm}
+                disabled={locationLoading}
+              >
+                New Location
+              </button>
+              {selectedLocationId ? (
+                <button
+                  type="button"
+                  className="button-outline"
+                  onClick={removeLocation}
+                  disabled={!canWrite || locationLoading}
+                >
+                  Delete Location
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {locationMessage ? <div className="alert">{locationMessage}</div> : null}
+          {locationSuccess ? <div className="success">{locationSuccess}</div> : null}
+
+          <form className="filters-grid" onSubmit={saveLocation}>
+            <label className="field">
+              Location name
+              <input
+                placeholder="e.g. Muhima"
+                value={locationForm.name}
+                onChange={(e) =>
+                  setLocationForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+              />
+            </label>
+            <label className="field">
+              Default min stock
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={locationForm.minStock}
+                onChange={(e) =>
+                  setLocationForm((prev) => ({ ...prev, minStock: e.target.value }))
+                }
+              />
+            </label>
+            <div className="filter-actions">
+              <button type="submit" disabled={!canWrite || locationLoading}>
+                {locationLoading
+                  ? "Saving..."
+                  : selectedLocationId
+                    ? "Update Location"
+                    : "Create Location"}
+              </button>
+            </div>
+          </form>
+
+          <div className="muted">
+            Saving location settings synchronizes branch labels and motorbike min stock.
+          </div>
+
+          <div className="divider" />
+
           {selectedBranch ? (
             <>
               <div className="stat-grid">
                 <div>
                   <div className="stat-label">Branch</div>
                   <div className="stat-value">{selectedBranch}</div>
+                </div>
+                <div>
+                  <div className="stat-label">Location record</div>
+                  <div className="stat-value">{selectedLocationId ? "Yes" : "No"}</div>
                 </div>
                 <div>
                   <div className="stat-label">Bikes</div>
@@ -272,11 +535,43 @@ export default function Branches() {
                 </div>
                 <div>
                   <div className="stat-label">Total Value</div>
+                  <div className="stat-value">{money(selectedSummary?.bikesValue)}</div>
+                </div>
+                <div>
+                  <div className="stat-label">Min Stock</div>
                   <div className="stat-value">
-                    {money(selectedSummary?.bikesValue)}
+                    {detail?.branch?.minStock ?? selectedSummary?.minStock ?? 0}
                   </div>
                 </div>
               </div>
+
+              <div className="divider" />
+
+              <div className="table-toolbar">
+                <h4>Apply Min Stock to Existing Bikes</h4>
+              </div>
+              <form className="filters-grid" onSubmit={applyBranchSettings}>
+                <label className="field">
+                  Branch min stock
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={locationForm.minStock}
+                    onChange={(e) =>
+                      setLocationForm((prev) => ({ ...prev, minStock: e.target.value }))
+                    }
+                  />
+                </label>
+                <div className="filter-actions">
+                  <button
+                    type="submit"
+                    disabled={!canWrite || settingsLoading || !selectedBranch}
+                  >
+                    {settingsLoading ? "Applying..." : "Apply to Branch Bikes"}
+                  </button>
+                </div>
+              </form>
 
               <div className="divider" />
 
@@ -442,7 +737,7 @@ export default function Branches() {
               </div>
             </>
           ) : (
-            <div className="muted">Select a branch to view details.</div>
+            <div className="muted">Select a branch to view full branch details.</div>
           )}
         </section>
       </div>

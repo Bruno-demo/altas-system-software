@@ -1,6 +1,6 @@
 // What this does: defines all routes and protects them by login + role
-import { useEffect, useRef } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import AppLayout from "./layout/AppLayout";
 import { initResizableTables } from "./utils/columnResize";
@@ -25,6 +25,7 @@ import StockAdjustments from "./pages/stock/StockAdjustments";
 import ReportsOverview from "./pages/reports/ReportsOverview";
 import SalesReports from "./pages/reports/SalesReports";
 import SalesSdc from "./pages/reports/SalesSdc";
+import Expenses from "./pages/reports/Expenses";
 import StockValuation from "./pages/reports/StockValuation";
 import AuditViewer from "./pages/reports/AuditViewer";
 import EbmDashboard from "./pages/reports/EbmDashboard";
@@ -48,38 +49,26 @@ const homeByRole = {
   SALESPERSON: "/motorbikes",
 };
 
+function normalizeRole(role) {
+  return String(role || "").trim().toUpperCase();
+}
+
 function LoginGate() {
   const { user, token } = useAuth();
+  const role = normalizeRole(user?.role);
   if (token && user) {
-    return <Navigate to={homeByRole[user.role] || "/login"} replace />;
+    return <Navigate to={homeByRole[role] || "/login"} replace />;
   }
   return <Login />;
 }
 
 export default function App() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, token } = useAuth();
-  const didInitialRedirect = useRef(false);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => initResizableTables());
     return () => window.cancelAnimationFrame(frame);
   }, [location.pathname]);
-
-  useEffect(() => {
-    if (!token || !user) {
-      didInitialRedirect.current = false;
-      return;
-    }
-    if (user.mustChangePassword) return;
-    if (didInitialRedirect.current) return;
-    didInitialRedirect.current = true;
-    const target = homeByRole[user.role] || "/login";
-    if (location.pathname !== target) {
-      navigate(target, { replace: true });
-    }
-  }, [token, user, location.pathname, navigate]);
 
   return (
     <Routes>
@@ -239,6 +228,16 @@ export default function App() {
           <ProtectedRoute roles={["MANAGER", "CEO"]}>
             <AppLayout>
               <SalesReports />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports/expenses"
+        element={
+          <ProtectedRoute roles={["HR", "MANAGER", "CEO"]}>
+            <AppLayout>
+              <Expenses />
             </AppLayout>
           </ProtectedRoute>
         }

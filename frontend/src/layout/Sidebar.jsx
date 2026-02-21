@@ -29,6 +29,7 @@ const linksByRole = {
     { to: "/motorbikes/branches", label: "Branches" },
     { to: "/motorbikes/promotions", label: "Promotions" },
     { to: "/reports/overview", label: "Reports Overview" },
+    { to: "/reports/expenses", label: "Expenses" },
     { to: "/reports/sales", label: "Sales Reports" },
     { to: "/reports/sales-sdc", label: "SDC Sales" },
     { to: "/reports/ebm", label: "EBM Dashboard" },
@@ -50,6 +51,7 @@ const linksByRole = {
   ],
   HR: [
     { to: "/hr", label: "HR Dashboard" },
+    { to: "/reports/expenses", label: "Expenses" },
     { to: "/hr/employees", label: "Employees" },
     { to: "/hr/attendance", label: "Attendance" },
     { to: "/hr/advances", label: "Salary Advances" },
@@ -68,6 +70,7 @@ const linksByRole = {
     { to: "/motorbikes/branches", label: "Branches" },
     { to: "/motorbikes/promotions", label: "Promotions" },
     { to: "/reports/overview", label: "Reports Overview" },
+    { to: "/reports/expenses", label: "Expenses" },
     { to: "/reports/sales", label: "Sales Reports" },
     { to: "/reports/ebm", label: "EBM Dashboard" },
     { to: "/reports/stock-valuation", label: "Stock Valuation" },
@@ -90,7 +93,7 @@ const linksByRole = {
 export default function Sidebar({ isOpen = false, onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const role = user?.role;
+  const role = String(user?.role || "").trim().toUpperCase();
   const links = linksByRole[role] || [];
 
   const handleLogout = () => {

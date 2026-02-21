@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { createProduct, listProducts, updateProduct } from "../../api/inventory";
 import Drawer from "../../components/Drawer";
 import { useAuth } from "../../auth/AuthContext";
+import { listLocations } from "../../api/inventory";
 
 const emptyForm = {
   chassisNumber: "",
@@ -14,7 +15,6 @@ const emptyForm = {
   branchName: "",
   costPrice: "",
   sellPrice: "",
-  minStock: "0",
 };
 
 export default function Motorbikes() {
@@ -26,6 +26,7 @@ export default function Motorbikes() {
   const [brand, setBrand] = useState("");
 
   const [rows, setRows] = useState([]);
+  const [locationBranches, setLocationBranches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
@@ -60,6 +61,37 @@ export default function Motorbikes() {
   }, [q, brand]);
 
   useEffect(() => {
+    let mounted = true;
+    listLocations()
+      .then((res) => {
+        if (!mounted) return;
+        setLocationBranches(res.data || []);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setMessage(err?.response?.data?.message || "Failed to load branches.");
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const branchOptions = useMemo(() => {
+    const set = new Set(
+      (locationBranches || [])
+        .map((row) => row?.name)
+        .filter(
+          (name) =>
+            Boolean(name) &&
+            String(name).trim().toUpperCase() !== "MOTORBIKE-SALES"
+        )
+    );
+    if (selected?.branchName) set.add(selected.branchName);
+    if (form.branchName) set.add(form.branchName);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [locationBranches, selected?.branchName, form.branchName]);
+
+  useEffect(() => {
     if (!success) return;
     const timer = setTimeout(() => setSuccess(""), 3000);
     return () => clearTimeout(timer);
@@ -72,7 +104,10 @@ export default function Motorbikes() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      branchName: branchOptions[0] || "",
+    });
     setDrawerOpen(true);
   };
 
@@ -89,7 +124,6 @@ export default function Motorbikes() {
       branchName: selected.branchName || "",
       costPrice: selected.costPrice || "",
       sellPrice: selected.sellPrice || "",
-      minStock: String(selected.minStock ?? "0"),
     });
     setDrawerOpen(true);
   };
@@ -122,7 +156,6 @@ export default function Motorbikes() {
       unit: "unit",
       costPrice: Number(form.costPrice),
       sellPrice: Number(form.sellPrice),
-      minStock: Number(form.minStock || 0),
       category: "Motorbike",
       modelYear: form.modelYear.trim() ? Number(form.modelYear) : undefined,
       weightKg: form.weightKg.trim() ? Number(form.weightKg) : undefined,
@@ -393,20 +426,21 @@ export default function Motorbikes() {
             />
           </label>
           <label className="field">
-            Min stock
-            <input
-              type="number"
-              min="0"
-              value={form.minStock}
-              onChange={(e) => setForm((p) => ({ ...p, minStock: e.target.value }))}
-            />
-          </label>
-          <label className="field">
             Branch
-            <input
+            <select
               value={form.branchName}
               onChange={(e) => setForm((p) => ({ ...p, branchName: e.target.value }))}
-            />
+            >
+              <option value="">{branchOptions.length ? "Select branch" : "No branch found"}</option>
+              {branchOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <small className="muted">
+              Branches come from Location records and are managed on stock side.
+            </small>
           </label>
         </div>
       </Drawer>

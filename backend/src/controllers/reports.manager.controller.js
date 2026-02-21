@@ -711,25 +711,43 @@ exports.backfillSalesSdc = async (req, res) => {
 };
 
 // -------------------------------
-// CASHFLOW (inflow from sales, outflow estimated from stock IN costs)
+// CASHFLOW (inflow from sales, outflow from expenses)
 // -------------------------------
 exports.cashflow = async (req, res) => {
   try {
     const { start, end, from, to, period } = resolveRange(req.query);
 
-    const salesAgg = await prisma.sale.aggregate({
-      where: { createdAt: { gte: start, lte: end } },
-      _sum: { total: true },
-    });
-
-    const stockIns = await prisma.stockTransaction.findMany({
-      where: {
-        type: "IN",
-        createdAt: { gte: start, lte: end },
-        unitCost: { not: null },
-      },
-      select: { unitCost: true, quantity: true },
-    });
+    const [salesByPayment, expenseByPayment, expenseByCategory, stockIns] = await prisma.$transaction([
+      prisma.sale.groupBy({
+        by: ["paymentMethod"],
+        where: { createdAt: { gte: start, lte: end } },
+        _sum: { total: true },
+        _count: { _all: true },
+        orderBy: { _sum: { total: "desc" } },
+      }),
+      prisma.expense.groupBy({
+        by: ["paymentMethod"],
+        where: { isDeleted: false, date: { gte: start, lte: end } },
+        _sum: { amount: true },
+        _count: { _all: true },
+        orderBy: { _sum: { amount: "desc" } },
+      }),
+      prisma.expense.groupBy({
+        by: ["category"],
+        where: { isDeleted: false, date: { gte: start, lte: end } },
+        _sum: { amount: true },
+        _count: { _all: true },
+        orderBy: { _sum: { amount: "desc" } },
+      }),
+      prisma.stockTransaction.findMany({
+        where: {
+          type: "IN",
+          createdAt: { gte: start, lte: end },
+          unitCost: { not: null },
+        },
+        select: { unitCost: true, quantity: true },
+      }),
+    ]);
 
     const stockPurchaseOut = stockIns.reduce((sum, t) => {
       const cost = Number(t.unitCost);
@@ -738,16 +756,40 @@ exports.cashflow = async (req, res) => {
       return sum + cost * qty;
     }, 0);
 
-    const inflow = Number(salesAgg._sum.total || 0);
-    const outflow = Number(stockPurchaseOut || 0);
+    const inflow = salesByPayment.reduce((sum, row) => sum + Number(row._sum.total || 0), 0);
+    const expenseOutflow = expenseByPayment.reduce((sum, row) => sum + Number(row._sum.amount || 0), 0);
+
+    const round2 = (value) => Number(Number(value || 0).toFixed(2));
 
     res.json({
       range: { from, to, period },
-      inflow: { salesTotal: inflow },
-      outflow: { stockPurchasesEstimated: outflow },
-      net: inflow - outflow,
+      inflow: {
+        salesTotal: round2(inflow),
+        byPaymentMethod: salesByPayment.map((row) => ({
+          paymentMethod: row.paymentMethod,
+          count: row._count._all,
+          amount: round2(row._sum.total),
+        })),
+      },
+      outflow: {
+        expensesTotal: round2(expenseOutflow),
+        byPaymentMethod: expenseByPayment.map((row) => ({
+          paymentMethod: row.paymentMethod,
+          count: row._count._all,
+          amount: round2(row._sum.amount),
+        })),
+        byCategory: expenseByCategory.map((row) => ({
+          category: row.category,
+          count: row._count._all,
+          amount: round2(row._sum.amount),
+        })),
+        // Backward compatibility for existing UI cards
+        stockPurchasesEstimated: round2(stockPurchaseOut),
+      },
+      net: round2(inflow - expenseOutflow),
+      legacyNetStockEstimate: round2(inflow - stockPurchaseOut),
       note:
-        "Stock purchases are estimated from StockTransaction IN (unitCost * quantity). Add Expenses module later for full cashflow.",
+        "Outflow now uses Expense records (isDeleted=false). stockPurchasesEstimated is kept for backward compatibility.",
     });
   } catch (err) {
     return handleError(res, err, { status: err.status || 500 });

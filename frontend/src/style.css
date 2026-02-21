@@ -835,11 +835,12 @@ button.data-button:hover {
 }
 
 .data-row.branch-row {
-  grid-template-columns: minmax(0, 1.4fr) 120px 120px 140px;
+  grid-template-columns: minmax(0, 1.4fr) 100px 100px 120px 140px;
 }
 
 .data-row.branch-row > :nth-child(2),
-.data-row.branch-row > :nth-child(3) {
+.data-row.branch-row > :nth-child(3),
+.data-row.branch-row > :nth-child(4) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -1510,6 +1511,24 @@ button:disabled {
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.status-debug-badge {
+  width: 100%;
+  text-align: left;
+  background: #f8f9ff;
+  border: 1px dashed #98a2b3;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #334155;
+  display: grid;
+  gap: 4px;
+}
+
+.status-debug-title {
+  font-weight: 700;
+  color: #1f2937;
 }
 
 @media (max-width: 900px) {
