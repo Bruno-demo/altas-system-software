@@ -26,6 +26,16 @@ Note:
 - PostgreSQL is internal to Docker network (not exposed on host `5432`), so it will not conflict with your local PostgreSQL service.
 
 ## 4) Seed demo data (optional)
+Set a temporary seed password first (not printed by the seed script):
+```powershell
+$env:SEED_DEFAULT_PASSWORD = "TemporaryStrongPassword123!"
+```
+
+Production safety:
+- Seeding is blocked when `NODE_ENV=production`.
+- To intentionally seed in production (controlled only), set `ALLOW_PROD_SEED=true`.
+
+Run seed:
 ```powershell
 docker compose exec app npm run seed
 ```

@@ -4,7 +4,7 @@ const bcrypt = require("bcrypt");
 
 const prisma = new PrismaClient();
 
-const PASSWORD = "Altas@2026";
+const PASSWORD = process.env.SEED_DEFAULT_PASSWORD;
 const TARGET = {
   USERS: 60,
   EMPLOYEES: 50,
@@ -106,6 +106,13 @@ async function wipeDatabase() {
 }
 
 async function main() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "true") {
+    throw new Error("Seeding is blocked in production. Set ALLOW_PROD_SEED=true only for controlled runs.");
+  }
+  if (!PASSWORD) {
+    throw new Error("SEED_DEFAULT_PASSWORD is required to run seed.");
+  }
+
   await wipeDatabase();
 
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
@@ -151,7 +158,6 @@ async function main() {
   }
 
   const userByEmail = new Map(allUsers.map((u) => [u.email.toLowerCase(), u]));
-  const ceoUser = userByEmail.get("ceo@altas.local") || usersByRole.CEO[0];
   const managerUser = userByEmail.get("manager@altas.local") || usersByRole.MANAGER[0];
   const hrUser = userByEmail.get("hr@altas.local") || usersByRole.HR[0];
   const cashierUsers = usersByRole.CASHIER;
@@ -895,9 +901,7 @@ async function main() {
 
   console.log("Seed complete with large dataset:");
   Object.entries(summary).forEach(([key, value]) => console.log(`- ${key}: ${value}`));
-  console.log(`\nLogin demo users (password: ${PASSWORD}):`);
-  defaultUsers.forEach((u) => console.log(`- ${u.email} (${u.role})`));
-  console.log(`\nPrimary admin for testing: ${ceoUser.email}`);
+  console.log("\nSeed finished. Credentials are intentionally not printed in production-safe mode.");
 }
 
 main()
