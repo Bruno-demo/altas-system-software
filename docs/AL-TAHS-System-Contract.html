@@ -5,96 +5,159 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AL-TAHS System Purchase Agreement</title>
   <style>
-    @page { size: A4; margin: 12mm; }
-    * { box-sizing: border-box; }
-    body {
+    :root {
+      --ink: #0f172a;
+      --muted: #334155;
+      --line: #0f172a;
+      --soft: #eef2ff;
+    }
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
       margin: 0;
-      font-family: "Times New Roman", Georgia, serif;
-      color: #111;
+      padding: 0;
       background: #fff;
-      line-height: 1.3;
-      font-size: 12px;
+      color: var(--ink);
+      font-family: "Segoe UI", Calibri, Arial, sans-serif;
+      line-height: 1.28;
+      font-size: 10.8px;
     }
     .page {
       width: 100%;
-      max-width: 186mm;
+      max-width: 190mm;
       margin: 0 auto;
+      border: 1px solid #cbd5e1;
+      padding: 8mm;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .top-band {
+      border: 1px solid var(--line);
+      background: var(--soft);
+      padding: 4mm 5mm;
+      margin-bottom: 5mm;
     }
     h1 {
-      margin: 0 0 6px;
+      margin: 0;
       text-align: center;
-      font-size: 20px;
+      font-size: 17px;
+      font-weight: 800;
       letter-spacing: 0.4px;
       text-transform: uppercase;
     }
     .subtitle {
+      margin-top: 2mm;
       text-align: center;
-      margin-bottom: 10px;
-      font-size: 12px;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 600;
     }
-    .line { border-bottom: 1px solid #333; min-height: 16px; display: inline-block; vertical-align: bottom; }
-    .w-sm { width: 90px; }
-    .w-md { width: 180px; }
-    .w-lg { width: 280px; }
-    .w-xl { width: 360px; }
-    p { margin: 5px 0; }
+    .fill {
+      display: inline-block;
+      min-height: 12px;
+      border-bottom: 1px solid #475569;
+      vertical-align: bottom;
+    }
+    .w-sm { width: 80px; }
+    .w-md { width: 150px; }
+    .w-lg { width: 250px; }
+    .w-xl { width: 320px; }
+    p {
+      margin: 2px 0;
+      overflow-wrap: anywhere;
+    }
     .sec-title {
-      margin-top: 8px;
-      font-weight: 700;
+      margin-top: 4mm;
+      margin-bottom: 2mm;
+      padding-bottom: 1.2mm;
+      border-bottom: 1px solid #1e293b;
+      font-size: 10.8px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
       text-transform: uppercase;
-      border-bottom: 1px solid #000;
-      padding-bottom: 2px;
-      font-size: 12px;
+    }
+    .muted {
+      color: var(--muted);
     }
     .terms {
-      margin: 6px 0 0 16px;
+      margin: 1mm 0 0 4.5mm;
       padding: 0;
     }
-    .terms li { margin: 3px 0; }
+    .terms li {
+      margin: 1px 0;
+      overflow-wrap: anywhere;
+    }
     .table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 6px;
+      table-layout: fixed;
+      margin-top: 1.5mm;
+      border: 1px solid var(--line);
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
-    .table td, .table th {
-      border: 1px solid #000;
-      padding: 5px 6px;
+    .table th,
+    .table td {
+      border: 1px solid var(--line);
+      padding: 2.2mm 2.4mm;
       vertical-align: top;
+      text-align: left;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
-    .table th { text-align: left; width: 34%; }
+    .table th {
+      width: 31%;
+      background: #f8fafc;
+      font-weight: 700;
+    }
     .sign-grid {
-      margin-top: 12px;
+      margin-top: 4mm;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 3mm;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
     .sign-box {
-      border: 1px solid #000;
-      padding: 8px;
-      min-height: 145px;
+      border: 1px solid var(--line);
+      padding: 2.6mm;
+      min-height: 34mm;
     }
-    .muted { color: #333; }
-    .small { font-size: 11px; }
+    .sign-head {
+      font-weight: 800;
+      margin-bottom: 1mm;
+    }
+    .small {
+      margin-top: 2.2mm;
+      font-size: 9.4px;
+    }
   </style>
 </head>
 <body>
   <main class="page">
-    <h1>AL-TAHS System Purchase Agreement</h1>
-    <div class="subtitle">
-      Agreement Date: <span class="line w-md"></span>
-      &nbsp;&nbsp; Place: <span class="line w-md"></span>
-    </div>
+    <header class="top-band">
+      <h1>AL-TAHS System Purchase Agreement</h1>
+      <div class="subtitle">
+        Agreement Date: <span class="fill w-md"></span>
+        &nbsp;&nbsp; Place: <span class="fill w-md"></span>
+      </div>
+    </header>
 
     <p>
-      This Agreement is entered between:
-      <strong>Developer/Seller:</strong> <span class="line w-xl"></span>
-      and <strong>Client/Buyer:</strong> <span class="line w-xl"></span>.
+      This Agreement is entered between <strong>Developer/Seller:</strong> <span class="fill w-xl"></span>
+      and <strong>Client/Buyer:</strong> <span class="fill w-xl"></span>.
     </p>
 
     <div class="sec-title">1. Scope of Delivery</div>
     <p class="muted">
-      The Seller delivers the AL-TAHS business management system (including configured modules, deployment setup,
-      and onboarding handover) as demonstrated and agreed by both parties.
+      The Seller delivers the AL-TAHS business management system, including configured modules,
+      deployment setup, and onboarding handover, as demonstrated and agreed by both parties.
     </p>
 
     <div class="sec-title">2. Commercial Terms</div>
@@ -113,10 +176,10 @@
       </tr>
       <tr>
         <th>Payment Due Date</th>
-        <td><span class="line w-lg"></span></td>
+        <td><span class="fill w-lg"></span></td>
       </tr>
       <tr>
-        <th>Hosting & Infrastructure Fees</th>
+        <th>Hosting &amp; Infrastructure Fees</th>
         <td>
           <strong>Client responsibility.</strong> All recurring and one-time infrastructure costs are covered by
           the Client, including hosting/VPS, domain, SSL, internet/VPN, backup storage, and any third-party service fees.
@@ -125,14 +188,12 @@
     </table>
 
     <div class="sec-title">3. Support Commitment (12 Months)</div>
-    <p class="muted">
-      The Seller will provide operational support for one (1) year from the signing date, including:
-    </p>
+    <p class="muted">The Seller will provide operational support for one (1) year from the signing date, including:</p>
     <ul class="terms">
       <li>Bug investigation and correction for delivered features.</li>
       <li>User guidance and issue troubleshooting when requested by the Client.</li>
       <li>Reasonable minor adjustments aligned with existing workflows.</li>
-      <li>Remote/onsite support scheduling by mutual agreement.</li>
+      <li>Remote or onsite support scheduling by mutual agreement.</li>
     </ul>
 
     <div class="sec-title">4. General Conditions</div>
@@ -145,25 +206,25 @@
 
     <div class="sign-grid">
       <section class="sign-box">
-        <strong>Seller / Developer</strong>
-        <p>Name: <span class="line w-lg"></span></p>
-        <p>ID / Company: <span class="line w-lg"></span></p>
-        <p>Phone: <span class="line w-md"></span></p>
-        <p>Signature: <span class="line w-md"></span></p>
-        <p>Date: <span class="line w-md"></span></p>
+        <div class="sign-head">Seller / Developer</div>
+        <p>Name: <span class="fill w-lg"></span></p>
+        <p>ID / Company: <span class="fill w-lg"></span></p>
+        <p>Phone: <span class="fill w-md"></span></p>
+        <p>Signature: <span class="fill w-md"></span></p>
+        <p>Date: <span class="fill w-md"></span></p>
       </section>
       <section class="sign-box">
-        <strong>Client / Buyer</strong>
-        <p>Name: <span class="line w-lg"></span></p>
-        <p>Company: <span class="line w-lg"></span></p>
-        <p>Phone: <span class="line w-md"></span></p>
-        <p>Signature: <span class="line w-md"></span></p>
-        <p>Date: <span class="line w-md"></span></p>
+        <div class="sign-head">Client / Buyer</div>
+        <p>Name: <span class="fill w-lg"></span></p>
+        <p>Company: <span class="fill w-lg"></span></p>
+        <p>Phone: <span class="fill w-md"></span></p>
+        <p>Signature: <span class="fill w-md"></span></p>
+        <p>Date: <span class="fill w-md"></span></p>
       </section>
     </div>
 
-    <p class="small muted" style="margin-top:8px;">
-      Witness (optional): <span class="line w-lg"></span> &nbsp;&nbsp; Signature: <span class="line w-md"></span>
+    <p class="small muted">
+      Witness (optional): <span class="fill w-lg"></span> &nbsp;&nbsp; Signature: <span class="fill w-md"></span>
     </p>
   </main>
 </body>
