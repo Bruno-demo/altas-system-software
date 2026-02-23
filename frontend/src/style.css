@@ -481,36 +481,11 @@ button.pos-terminal-clear {
 }
 
 .inventory-filters {
-  grid-template-areas: "search location bin actions";
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-  align-items: end;
-}
-
-.inventory-filters > * {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.inventory-filters > .field:first-of-type {
-  grid-area: search;
-}
-
-.inventory-filter-location {
-  grid-area: location;
-}
-
-.inventory-filter-bin {
-  grid-area: bin;
-}
-
-.inventory-filter-actions {
-  grid-area: actions;
-  align-self: end;
-  justify-self: end;
-}
-
-.inventory-filter-actions button {
-  white-space: nowrap;
+  grid-template-columns:
+    minmax(240px, 1.35fr)
+    minmax(200px, 1fr)
+    minmax(200px, 1fr)
+    auto;
 }
 
 .inventory-filters .field,
@@ -519,20 +494,6 @@ button.pos-terminal-clear {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-}
-
-@media (max-width: 1200px) {
-  .inventory-filters {
-    grid-template-areas:
-      "search search"
-      "location bin"
-      "actions actions";
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .inventory-filter-actions {
-    justify-self: start;
-  }
 }
 
 .filter-actions {
@@ -1710,19 +1671,6 @@ button:disabled {
 
   .filters-grid {
     grid-template-columns: 1fr;
-  }
-
-  .inventory-filters {
-    grid-template-areas:
-      "search"
-      "location"
-      "bin"
-      "actions";
-    grid-template-columns: 1fr;
-  }
-
-  .inventory-filter-actions {
-    justify-self: start;
   }
 
   .button-row {
