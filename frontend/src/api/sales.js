@@ -21,3 +21,8 @@ export const fetchReceiptHtml = (saleId) =>
   });
 
 export const getInvoice = (saleId) => api.get(`/api/sales/${saleId}`);
+
+export const listMotorbikePrices = () => api.get("/api/pos/motorbike-prices");
+
+export const updateMotorbikePrice = (sku, payload) =>
+  api.put(`/api/pos/motorbike-prices/${encodeURIComponent(sku)}`, payload);

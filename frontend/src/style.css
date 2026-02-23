@@ -847,6 +847,20 @@ button.data-button:hover {
   align-items: start;
 }
 
+.data-row.motorbike-price-row {
+  grid-template-columns: minmax(0, 1.3fr) 170px minmax(0, 180px) 120px;
+}
+
+.data-row.motorbike-price-row > :nth-child(3) input {
+  width: 100%;
+  min-width: 0;
+}
+
+.data-row.motorbike-price-row > :nth-child(4) {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .data-row.branch-row {
   grid-template-columns: minmax(0, 1.4fr) 100px 100px 120px 140px;
 }

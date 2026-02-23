@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { importSalesSdc, getImportedSalesSdc } from "../../api/reports";
-import { listInvoices } from "../../api/sales";
+import { useAuth } from "../../auth/AuthContext";
+import { listInvoices, listMotorbikePrices, updateMotorbikePrice } from "../../api/sales";
 
 const periods = [
   { value: "all", label: "All time" },
@@ -18,6 +19,11 @@ function money(n) {
 }
 
 export default function SalesBrowse() {
+  const { user } = useAuth();
+  const canEditMotorbikePrices = ["SALESPERSON", "CASHIER", "MANAGER", "CEO"].includes(
+    String(user?.role || "").toUpperCase()
+  );
+
   const [period, setPeriod] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -42,6 +48,12 @@ export default function SalesBrowse() {
   const [importFile, setImportFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState(null);
+  const [motorbikeRows, setMotorbikeRows] = useState([]);
+  const [motorbikeDraft, setMotorbikeDraft] = useState({});
+  const [motorbikeLoading, setMotorbikeLoading] = useState(false);
+  const [motorbikeSavingSku, setMotorbikeSavingSku] = useState("");
+  const [motorbikeMessage, setMotorbikeMessage] = useState("");
+  const [motorbikeSuccess, setMotorbikeSuccess] = useState("");
   const fileRef = useRef(null);
 
   const totalPages = meta?.pages || 1;
@@ -119,6 +131,35 @@ export default function SalesBrowse() {
     return () => clearTimeout(timer);
   }, [success]);
 
+  useEffect(() => {
+    if (!motorbikeSuccess) return;
+    const timer = setTimeout(() => setMotorbikeSuccess(""), 3000);
+    return () => clearTimeout(timer);
+  }, [motorbikeSuccess]);
+
+  const loadMotorbikePrices = useCallback(async () => {
+    setMotorbikeLoading(true);
+    setMotorbikeMessage("");
+    try {
+      const res = await listMotorbikePrices();
+      const rows = res.data?.rows || [];
+      setMotorbikeRows(rows);
+      const nextDraft = {};
+      rows.forEach((row) => {
+        nextDraft[row.sku] = String(row.sellPrice ?? "");
+      });
+      setMotorbikeDraft(nextDraft);
+    } catch (err) {
+      setMotorbikeMessage(err?.response?.data?.message || "Failed to load motorbike prices.");
+    } finally {
+      setMotorbikeLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMotorbikePrices();
+  }, [loadMotorbikePrices]);
+
   const handleSearch = (event) => {
     event.preventDefault();
     setPage(1);
@@ -168,6 +209,29 @@ export default function SalesBrowse() {
     if (range.from && range.to) return `${range.from} - ${range.to}`;
     return range.period ? range.period.replace("_", " ").toUpperCase() : "";
   }, [range]);
+
+  const saveMotorbikePrice = async (row) => {
+    const raw = String(motorbikeDraft[row.sku] ?? "").trim();
+    const price = Number(raw);
+
+    if (!Number.isFinite(price) || price <= 0) {
+      setMotorbikeMessage(`Price for ${row.name} must be greater than 0.`);
+      return;
+    }
+
+    setMotorbikeMessage("");
+    setMotorbikeSuccess("");
+    setMotorbikeSavingSku(row.sku);
+    try {
+      await updateMotorbikePrice(row.sku, { sellPrice: price });
+      setMotorbikeSuccess(`${row.name} price updated.`);
+      await loadMotorbikePrices();
+    } catch (err) {
+      setMotorbikeMessage(err?.response?.data?.message || "Failed to update motorbike price.");
+    } finally {
+      setMotorbikeSavingSku("");
+    }
+  };
 
   return (
     <div className="page">
@@ -317,6 +381,75 @@ export default function SalesBrowse() {
           </div>
         </section>
       </div>
+
+      <section className="card list-panel">
+        <div className="table-toolbar">
+          <div>
+            <h3>Default POS Motorbike Prices</h3>
+            <div className="muted">
+              Update SPIRO/BAJAJ/DISCOVER sale prices used in cashier POS. Values are saved in the database.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="button-outline"
+            onClick={loadMotorbikePrices}
+            disabled={motorbikeLoading}
+          >
+            {motorbikeLoading ? "Refreshing..." : "Refresh Prices"}
+          </button>
+        </div>
+
+        {motorbikeMessage ? <div className="alert">{motorbikeMessage}</div> : null}
+        {motorbikeSuccess ? <div className="success">{motorbikeSuccess}</div> : null}
+
+        <div className="data-table">
+          <div className="data-row data-header motorbike-price-row">
+            <div>Model</div>
+            <div>SKU</div>
+            <div>Sell price</div>
+            <div>Action</div>
+          </div>
+
+          {motorbikeLoading ? (
+            <div className="muted">Loading motorbike prices...</div>
+          ) : motorbikeRows.length ? (
+            motorbikeRows.map((row) => (
+              <div key={row.sku} className="data-row motorbike-price-row">
+                <div>{row.name}</div>
+                <div>{row.sku}</div>
+                <div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={motorbikeDraft[row.sku] ?? ""}
+                    onChange={(e) =>
+                      setMotorbikeDraft((prev) => ({
+                        ...prev,
+                        [row.sku]: e.target.value,
+                      }))
+                    }
+                    disabled={!canEditMotorbikePrices || motorbikeSavingSku === row.sku}
+                  />
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="button-outline"
+                    onClick={() => saveMotorbikePrice(row)}
+                    disabled={!canEditMotorbikePrices || motorbikeSavingSku === row.sku}
+                  >
+                    {motorbikeSavingSku === row.sku ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="muted">No default motorbike prices found.</div>
+          )}
+        </div>
+      </section>
 
       <section className="card list-panel">
         <div className="table-toolbar">

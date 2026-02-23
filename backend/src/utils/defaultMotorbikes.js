@@ -1,45 +1,43 @@
 // What this does: ensures default cashier motorbikes exist for POS "infinite" sales
 const FALLBACK_SELL_PRICE = "1000000.00";
 
-function resolveSellPrice(envKey) {
-  const raw = process.env[envKey];
-  const num = Number(raw);
-  if (Number.isFinite(num) && num > 0) return num.toFixed(2);
-  return FALLBACK_SELL_PRICE;
-}
-
 const DEFAULT_CASHIER_MOTORBIKES = [
   {
     sku: "POS-SPIRO-M1",
     name: "SPIRO M1",
     brand: "SPIRO",
-    sellPrice: resolveSellPrice("POS_PRICE_SPIRO_M1"),
+    sellPrice: FALLBACK_SELL_PRICE,
   },
   {
     sku: "POS-SPIRO-M2",
     name: "SPIRO M2",
     brand: "SPIRO",
-    sellPrice: resolveSellPrice("POS_PRICE_SPIRO_M2"),
+    sellPrice: FALLBACK_SELL_PRICE,
   },
   {
     sku: "POS-SPIRO-M3",
     name: "SPIRO M3",
     brand: "SPIRO",
-    sellPrice: resolveSellPrice("POS_PRICE_SPIRO_M3"),
+    sellPrice: FALLBACK_SELL_PRICE,
   },
   {
     sku: "POS-BAJAJ",
     name: "BAJAJ",
     brand: "BAJAJ",
-    sellPrice: resolveSellPrice("POS_PRICE_BAJAJ"),
+    sellPrice: FALLBACK_SELL_PRICE,
   },
   {
     sku: "POS-DISCOVER",
     name: "DISCOVER",
     brand: "DISCOVER",
-    sellPrice: resolveSellPrice("POS_PRICE_DISCOVER"),
+    sellPrice: FALLBACK_SELL_PRICE,
   },
 ];
+const DEFAULT_CASHIER_MOTORBIKE_SKUS = DEFAULT_CASHIER_MOTORBIKES.map((item) => item.sku);
+
+function isDefaultCashierMotorbikeSku(sku) {
+  return DEFAULT_CASHIER_MOTORBIKE_SKUS.includes(String(sku || "").trim());
+}
 
 function buildDefaultProduct(item) {
   return {
@@ -142,5 +140,7 @@ async function ensureCashierMotorbikes(prisma) {
 module.exports = {
   ensureCashierMotorbikes,
   DEFAULT_CASHIER_MOTORBIKES,
+  DEFAULT_CASHIER_MOTORBIKE_SKUS,
+  isDefaultCashierMotorbikeSku,
   FALLBACK_SELL_PRICE,
 };

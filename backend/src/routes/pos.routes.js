@@ -13,6 +13,10 @@ const { getEbmInput, confirmEbm } = require("../controllers/ebm.controller");
 const { searchProducts } = require("../controllers/pos.search.controller");
 const { openShift, getMyOpenShift, closeShift } = require("../controllers/pos.shift.controller");
 const { exportShiftExcel } = require("../controllers/pos.shift.export.controller");
+const {
+  listDefaultMotorbikePrices,
+  updateDefaultMotorbikePrice,
+} = require("../controllers/pos.motorbike.price.controller");
 
 
 
@@ -28,6 +32,18 @@ router.get("/sales", auth, allowRoles("SALESPERSON", "CASHIER", "MANAGER", "CEO"
 router.get("/sales/:id", auth, allowRoles("SALESPERSON", "CASHIER", "MANAGER", "CEO"), getSaleById);
 // ✅ Product search (Cashier + Manager + CEO)
 router.get("/products/search", auth, allowRoles("CASHIER", "MANAGER", "CEO"), searchProducts);
+router.get(
+  "/motorbike-prices",
+  auth,
+  allowRoles("SALESPERSON", "CASHIER", "MANAGER", "CEO"),
+  listDefaultMotorbikePrices
+);
+router.put(
+  "/motorbike-prices/:sku",
+  auth,
+  allowRoles("SALESPERSON", "CASHIER", "MANAGER", "CEO"),
+  updateDefaultMotorbikePrice
+);
 
 router.post("/shift/open", auth, allowRoles("CASHIER"), openShift);
 router.get("/shift/open", auth, allowRoles("CASHIER"), getMyOpenShift);
