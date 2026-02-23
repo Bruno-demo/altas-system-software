@@ -480,6 +480,22 @@ button.pos-terminal-clear {
   min-width: 0;
 }
 
+.inventory-filters {
+  grid-template-columns:
+    minmax(240px, 1.35fr)
+    minmax(200px, 1fr)
+    minmax(200px, 1fr)
+    auto;
+}
+
+.inventory-filters .field,
+.inventory-filters .field > input,
+.inventory-filters .field > select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .filter-actions {
   display: flex;
   justify-content: flex-end;

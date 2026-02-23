@@ -125,7 +125,7 @@ export default function Inventory() {
 
       {message ? <div className="alert">{message}</div> : null}
 
-      <form className="filters-grid" onSubmit={handleSearch}>
+      <form className="filters-grid inventory-filters" onSubmit={handleSearch}>
         <label className="field">
           Search
           <input
