@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  createBranchSale,
   getBranchDetail,
   listBranches,
   updateBranchSettings,
@@ -11,6 +12,7 @@ import {
   deleteLocation,
 } from "../../api/inventory";
 import { useAuth } from "../../auth/AuthContext";
+import Drawer from "../../components/Drawer";
 
 function money(n) {
   const value = Number(n || 0);
@@ -31,6 +33,41 @@ function parseMinStock(value) {
   return parsed;
 }
 
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function emptySaleForm() {
+  return {
+    bikeId: "",
+    branchName: "",
+    chassisNumber: "",
+    model: "",
+    saleDate: todayDate(),
+    sdcId: "",
+    customerName: "",
+    buyerTin: "",
+    phoneNumber: "",
+    quantity: "1",
+    unitPrice: "",
+    vat: "0",
+    receiptType: "Sale",
+    addToPromotion: false,
+    plateNumber: "",
+    delivered: false,
+    stubPaid: false,
+  };
+}
+
+const salePeriods = [
+  { value: "all", label: "All time" },
+  { value: "today", label: "Today" },
+  { value: "this_week", label: "This week" },
+  { value: "this_month", label: "This month" },
+  { value: "this_year", label: "This year" },
+  { value: "custom", label: "Custom range" },
+];
+
 export default function Branches() {
   const { user } = useAuth();
   const canWrite = ["SALESPERSON", "MANAGER", "CEO"].includes(user?.role);
@@ -39,6 +76,9 @@ export default function Branches() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  const [salePeriod, setSalePeriod] = useState("all");
+  const [saleFrom, setSaleFrom] = useState("");
+  const [saleTo, setSaleTo] = useState("");
 
   const [branches, setBranches] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -64,8 +104,12 @@ export default function Branches() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationMessage, setLocationMessage] = useState("");
   const [locationSuccess, setLocationSuccess] = useState("");
+  const [saleSuccess, setSaleSuccess] = useState("");
 
   const [settingsLoading, setSettingsLoading] = useState(false);
+  const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
+  const [saleDrawerLoading, setSaleDrawerLoading] = useState(false);
+  const [saleForm, setSaleForm] = useState(emptySaleForm());
 
   const branchPages = meta?.pages || 1;
   const bikePages = detail?.bikes?.meta?.pages || 1;
@@ -78,12 +122,25 @@ export default function Branches() {
 
   const selectedLocationId =
     selectedSummary?.locationId || detail?.branch?.locationId || "";
+  const branchBikeOptions = detail?.bikes?.rows || [];
+
+  const buildSalesFilterParams = () => ({
+    salePeriod,
+    ...(salePeriod === "custom"
+      ? { saleFrom: saleFrom || undefined, saleTo: saleTo || undefined }
+      : {}),
+  });
 
   const loadBranches = async (preferredBranchName) => {
     setLoading(true);
     setMessage("");
     try {
-      const res = await listBranches({ q: q.trim() || undefined, page, limit });
+      const res = await listBranches({
+        q: q.trim() || undefined,
+        page,
+        limit,
+        ...buildSalesFilterParams(),
+      });
       const rows = res.data?.rows || [];
       setBranches(rows);
       setMeta(res.data?.meta || null);
@@ -116,6 +173,7 @@ export default function Branches() {
         bikeLimit,
         salePage,
         saleLimit,
+        ...buildSalesFilterParams(),
       });
       setDetail(res.data || null);
     } catch (err) {
@@ -127,11 +185,11 @@ export default function Branches() {
 
   useEffect(() => {
     loadBranches();
-  }, [q, page, limit]);
+  }, [q, page, limit, salePeriod, saleFrom, saleTo]);
 
   useEffect(() => {
     loadDetail();
-  }, [selectedBranch, bikeQuery, bikePage, bikeLimit, salePage, saleLimit]);
+  }, [selectedBranch, bikeQuery, bikePage, bikeLimit, salePage, saleLimit, salePeriod, saleFrom, saleTo]);
 
   useEffect(() => {
     const minStockValue =
@@ -168,6 +226,12 @@ export default function Branches() {
     return () => clearTimeout(timer);
   }, [locationSuccess]);
 
+  useEffect(() => {
+    if (!saleSuccess) return;
+    const timer = setTimeout(() => setSaleSuccess(""), 3000);
+    return () => clearTimeout(timer);
+  }, [saleSuccess]);
+
   const applySearch = (event) => {
     event.preventDefault();
     setPage(1);
@@ -188,6 +252,7 @@ export default function Branches() {
     setSalePage(1);
     setLocationMessage("");
     setLocationSuccess("");
+    setSaleSuccess("");
   };
 
   const applyBranchSettings = async (event) => {
@@ -309,6 +374,107 @@ export default function Branches() {
     setLocationForm({ name: "", minStock: "0" });
   };
 
+  const openSaleDrawer = (bikeRow = null) => {
+    if (!selectedBranch) return;
+    const sourceBike = bikeRow || branchBikeOptions[0] || null;
+    setSaleForm({
+      ...emptySaleForm(),
+      bikeId: sourceBike?.id || "",
+      branchName: selectedBranch,
+      chassisNumber: sourceBike?.chassisNumber || sourceBike?.sku || "",
+      model: sourceBike?.name || "",
+      unitPrice:
+        sourceBike?.sellPrice != null ? String(sourceBike.sellPrice) : "",
+    });
+    setSaleDrawerOpen(true);
+  };
+
+  const applyBikeToSale = (bikeId) => {
+    const bike = branchBikeOptions.find((row) => row.id === bikeId);
+    setSaleForm((prev) => ({
+      ...prev,
+      bikeId: bikeId || "",
+      chassisNumber: bike?.chassisNumber || bike?.sku || "",
+      model: bike?.name || "",
+      unitPrice:
+        bike?.sellPrice != null ? String(bike.sellPrice) : prev.unitPrice,
+    }));
+  };
+
+  const submitBranchSale = async () => {
+    setMessage("");
+    setSaleSuccess("");
+
+    if (!saleForm.branchName.trim()) {
+      setMessage("Branch is required.");
+      return;
+    }
+    if (!saleForm.chassisNumber.trim()) {
+      setMessage("Chassis number is required.");
+      return;
+    }
+    if (!saleForm.model.trim()) {
+      setMessage("Model is required.");
+      return;
+    }
+    if (!saleForm.sdcId.trim()) {
+      setMessage("SDC ID is required.");
+      return;
+    }
+
+    const quantity = Number(saleForm.quantity || 0);
+    const unitPrice = Number(saleForm.unitPrice || 0);
+    const vat = Number(saleForm.vat || 0);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setMessage("Quantity must be greater than 0.");
+      return;
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      setMessage("Unit price must be greater than 0.");
+      return;
+    }
+    if (!Number.isFinite(vat) || vat < 0) {
+      setMessage("VAT must be 0 or greater.");
+      return;
+    }
+
+    setSaleDrawerLoading(true);
+    try {
+      const payload = {
+        branchName: saleForm.branchName.trim(),
+        chassisNumber: saleForm.chassisNumber.trim(),
+        model: saleForm.model.trim(),
+        saleDate: saleForm.saleDate || undefined,
+        sdcId: saleForm.sdcId.trim(),
+        buyerName: saleForm.customerName.trim() || undefined,
+        buyerTin: saleForm.buyerTin.trim() || undefined,
+        phoneNumber: saleForm.phoneNumber.trim() || undefined,
+        quantity,
+        unitPrice,
+        vat,
+        receiptType: saleForm.receiptType || "Sale",
+        addToPromotion: Boolean(saleForm.addToPromotion),
+        plateNumber: saleForm.plateNumber.trim() || undefined,
+        delivered: Boolean(saleForm.delivered),
+        stubPaid: Boolean(saleForm.stubPaid),
+      };
+
+      const res = await createBranchSale(payload);
+      setSaleDrawerOpen(false);
+      setSaleForm(emptySaleForm());
+      setSaleSuccess(
+        res.data?.promotion
+          ? "Branch sale saved in SDC rows and synced to promotions."
+          : "Branch sale saved in SDC rows."
+      );
+      await Promise.all([loadDetail(), loadBranches(selectedBranch)]);
+    } catch (err) {
+      setMessage(err?.response?.data?.message || "Failed to create branch sale.");
+    } finally {
+      setSaleDrawerLoading(false);
+    }
+  };
+
   return (
     <div className="page branches-page">
       <div className="page-header">
@@ -329,6 +495,7 @@ export default function Branches() {
       </div>
 
       {message ? <div className="alert">{message}</div> : null}
+      {saleSuccess ? <div className="success">{saleSuccess}</div> : null}
 
       <form className="filters-grid" onSubmit={applySearch}>
         <label className="field">
@@ -337,6 +504,49 @@ export default function Branches() {
             placeholder="Branch name"
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          Sold period
+          <select
+            value={salePeriod}
+            onChange={(e) => {
+              setSalePeriod(e.target.value);
+              setPage(1);
+              setSalePage(1);
+            }}
+          >
+            {salePeriods.map((period) => (
+              <option key={period.value} value={period.value}>
+                {period.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          From
+          <input
+            type="date"
+            value={saleFrom}
+            onChange={(e) => {
+              setSaleFrom(e.target.value);
+              setPage(1);
+              setSalePage(1);
+            }}
+            disabled={salePeriod !== "custom"}
+          />
+        </label>
+        <label className="field">
+          To
+          <input
+            type="date"
+            value={saleTo}
+            onChange={(e) => {
+              setSaleTo(e.target.value);
+              setPage(1);
+              setSalePage(1);
+            }}
+            disabled={salePeriod !== "custom"}
           />
         </label>
         <label className="field">
@@ -425,14 +635,24 @@ export default function Branches() {
         <section className="card preview-panel">
           <div className="table-toolbar">
             <h3>Branch Detail</h3>
-            <button
-              type="button"
-              className="button-outline"
-              onClick={loadDetail}
-              disabled={!selectedBranch || detailLoading}
-            >
-              Refresh
-            </button>
+            <div className="button-row">
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => openSaleDrawer()}
+                disabled={!selectedBranch || !canWrite}
+              >
+                Create Branch Sale
+              </button>
+              <button
+                type="button"
+                className="button-outline"
+                onClick={loadDetail}
+                disabled={!selectedBranch || detailLoading}
+              >
+                Refresh
+              </button>
+            </div>
           </div>
 
           <div className="table-toolbar">
@@ -606,18 +826,27 @@ export default function Branches() {
                       <div>{row.modelYear || "-"}</div>
                       <div className="button-row">
                         {canWrite ? (
-                          <Link
-                            className="button-outline"
-                            to={`/motorbikes/promotions?chassis=${encodeURIComponent(
-                              row.chassisNumber || row.sku || ""
-                            )}&model=${encodeURIComponent(
-                              row.name || ""
-                            )}&branch=${encodeURIComponent(
-                              row.branchName || selectedBranch || ""
-                            )}`}
-                          >
-                            Report Sold
-                          </Link>
+                          <>
+                            <button
+                              type="button"
+                              className="button-outline"
+                              onClick={() => openSaleDrawer(row)}
+                            >
+                              Create Sale
+                            </button>
+                            <Link
+                              className="button-outline"
+                              to={`/motorbikes/promotions?chassis=${encodeURIComponent(
+                                row.chassisNumber || row.sku || ""
+                              )}&model=${encodeURIComponent(
+                                row.name || ""
+                              )}&branch=${encodeURIComponent(
+                                row.branchName || selectedBranch || ""
+                              )}`}
+                            >
+                              Add to Promotion
+                            </Link>
+                          </>
                         ) : (
                           <span className="muted">View only</span>
                         )}
@@ -670,7 +899,10 @@ export default function Branches() {
               <div className="divider" />
 
               <div className="table-toolbar">
-                <h4>Recent Sales (Promotions)</h4>
+                <h4>Recent Branch Sales</h4>
+                <div className="muted">
+                  Range: {detail?.salesRange?.from || "-"} to {detail?.salesRange?.to || "-"}
+                </div>
                 <label className="field">
                   Row limit
                   <select
@@ -689,7 +921,7 @@ export default function Branches() {
 
               <div className="data-table">
                 <div className="data-row data-header branch-sale-row">
-                  <div>Count</div>
+                  <div>SDC ID</div>
                   <div>Date</div>
                   <div>Customer</div>
                   <div>Chassis</div>
@@ -741,6 +973,207 @@ export default function Branches() {
           )}
         </section>
       </div>
+
+      <Drawer
+        open={saleDrawerOpen}
+        onClose={() => setSaleDrawerOpen(false)}
+        title="Create Branch Sale"
+        footer={
+          <div className="button-row">
+            <button
+              type="button"
+              className="button-outline"
+              onClick={() => setSaleDrawerOpen(false)}
+              disabled={saleDrawerLoading}
+            >
+              Cancel
+            </button>
+            <button type="button" onClick={submitBranchSale} disabled={saleDrawerLoading}>
+              {saleDrawerLoading ? "Saving..." : "Save Sale"}
+            </button>
+          </div>
+        }
+      >
+        <div className="form">
+          {branchBikeOptions.length ? (
+            <label className="field">
+              Pick branch bike
+              <select
+                value={saleForm.bikeId}
+                onChange={(e) => applyBikeToSale(e.target.value)}
+              >
+                <option value="">Manual</option>
+                {branchBikeOptions.map((bike) => (
+                  <option key={bike.id} value={bike.id}>
+                    {bike.name} | {bike.chassisNumber || bike.sku}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <label className="field">
+            Branch
+            <input value={saleForm.branchName} readOnly />
+          </label>
+          <label className="field">
+            Chassis number
+            <input
+              value={saleForm.chassisNumber}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, chassisNumber: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            Model
+            <input
+              value={saleForm.model}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, model: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            SDC ID (required)
+            <input
+              value={saleForm.sdcId}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, sdcId: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            Sale date
+            <input
+              type="date"
+              value={saleForm.saleDate}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, saleDate: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            Customer name
+            <input
+              value={saleForm.customerName}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, customerName: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            Buyer TIN
+            <input
+              value={saleForm.buyerTin}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, buyerTin: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            Phone number
+            <input
+              value={saleForm.phoneNumber}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, phoneNumber: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            Quantity
+            <input
+              type="number"
+              min="0.001"
+              step="0.001"
+              value={saleForm.quantity}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, quantity: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            Unit price
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={saleForm.unitPrice}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, unitPrice: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            VAT
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={saleForm.vat}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, vat: e.target.value }))
+              }
+            />
+          </label>
+          <label className="field">
+            Receipt type
+            <select
+              value={saleForm.receiptType}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, receiptType: e.target.value }))
+              }
+            >
+              <option value="Sale">Sale</option>
+              <option value="Refund after Sale">Refund after Sale</option>
+              <option value="Exchange">Exchange</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label className="field checkbox-field">
+            <input
+              type="checkbox"
+              checked={saleForm.addToPromotion}
+              onChange={(e) =>
+                setSaleForm((prev) => ({ ...prev, addToPromotion: e.target.checked }))
+              }
+            />
+            <span>Also add to Promotions</span>
+          </label>
+          {saleForm.addToPromotion ? (
+            <>
+              <label className="field">
+                Plate number
+                <input
+                  value={saleForm.plateNumber}
+                  onChange={(e) =>
+                    setSaleForm((prev) => ({ ...prev, plateNumber: e.target.value }))
+                  }
+                />
+              </label>
+              <label className="field checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={saleForm.delivered}
+                  onChange={(e) =>
+                    setSaleForm((prev) => ({ ...prev, delivered: e.target.checked }))
+                  }
+                />
+                <span>Delivered</span>
+              </label>
+              <label className="field checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={saleForm.stubPaid}
+                  onChange={(e) =>
+                    setSaleForm((prev) => ({ ...prev, stubPaid: e.target.checked }))
+                  }
+                />
+                <span>Stub paid</span>
+              </label>
+            </>
+          ) : null}
+        </div>
+      </Drawer>
     </div>
   );
 }

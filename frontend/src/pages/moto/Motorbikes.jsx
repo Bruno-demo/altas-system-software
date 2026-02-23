@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { createProduct, listProducts, updateProduct } from "../../api/inventory";
+import { createBranchSale } from "../../api/motorbikes";
 import Drawer from "../../components/Drawer";
 import { useAuth } from "../../auth/AuthContext";
 import { listLocations } from "../../api/inventory";
@@ -16,6 +17,31 @@ const emptyForm = {
   costPrice: "",
   sellPrice: "",
 };
+
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function emptySaleForm() {
+  return {
+    branchName: "",
+    chassisNumber: "",
+    model: "",
+    saleDate: todayDate(),
+    sdcId: "",
+    customerName: "",
+    buyerTin: "",
+    phoneNumber: "",
+    quantity: "1",
+    unitPrice: "",
+    vat: "0",
+    receiptType: "Sale",
+    addToPromotion: false,
+    plateNumber: "",
+    delivered: false,
+    stubPaid: false,
+  };
+}
 
 export default function Motorbikes() {
   const { user } = useAuth();
@@ -35,6 +61,10 @@ export default function Motorbikes() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
+
+  const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
+  const [saleForm, setSaleForm] = useState(emptySaleForm);
+  const [saleLoading, setSaleLoading] = useState(false);
 
   const loadMotorbikes = async () => {
     setLoading(true);
@@ -128,6 +158,18 @@ export default function Motorbikes() {
     setDrawerOpen(true);
   };
 
+  const openSaleDrawer = () => {
+    if (!selected) return;
+    setSaleForm({
+      ...emptySaleForm(),
+      branchName: selected.branchName || "",
+      chassisNumber: selected.chassisNumber || selected.sku || "",
+      model: selected.name || "",
+      unitPrice: selected.sellPrice != null ? String(selected.sellPrice) : "",
+    });
+    setSaleDrawerOpen(true);
+  };
+
   const handleSave = async () => {
     setMessage("");
     setSuccess("");
@@ -177,6 +219,79 @@ export default function Motorbikes() {
       loadMotorbikes();
     } catch (err) {
       setMessage(err?.response?.data?.message || "Save failed.");
+    }
+  };
+
+  const handleCreateSale = async () => {
+    setMessage("");
+    setSuccess("");
+
+    if (!saleForm.branchName.trim()) {
+      setMessage("Branch is required.");
+      return;
+    }
+    if (!saleForm.chassisNumber.trim()) {
+      setMessage("Chassis number is required.");
+      return;
+    }
+    if (!saleForm.model.trim()) {
+      setMessage("Model is required.");
+      return;
+    }
+    if (!saleForm.sdcId.trim()) {
+      setMessage("SDC ID is required.");
+      return;
+    }
+
+    const quantity = Number(saleForm.quantity || 0);
+    const unitPrice = Number(saleForm.unitPrice || 0);
+    const vat = Number(saleForm.vat || 0);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setMessage("Quantity must be greater than 0.");
+      return;
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      setMessage("Unit price must be greater than 0.");
+      return;
+    }
+    if (!Number.isFinite(vat) || vat < 0) {
+      setMessage("VAT must be 0 or greater.");
+      return;
+    }
+
+    setSaleLoading(true);
+    try {
+      const payload = {
+        branchName: saleForm.branchName.trim(),
+        chassisNumber: saleForm.chassisNumber.trim(),
+        model: saleForm.model.trim(),
+        saleDate: saleForm.saleDate || undefined,
+        sdcId: saleForm.sdcId.trim(),
+        buyerName: saleForm.customerName.trim() || undefined,
+        buyerTin: saleForm.buyerTin.trim() || undefined,
+        phoneNumber: saleForm.phoneNumber.trim() || undefined,
+        quantity,
+        unitPrice,
+        vat,
+        receiptType: saleForm.receiptType || "Sale",
+        addToPromotion: Boolean(saleForm.addToPromotion),
+        plateNumber: saleForm.plateNumber.trim() || undefined,
+        delivered: Boolean(saleForm.delivered),
+        stubPaid: Boolean(saleForm.stubPaid),
+      };
+
+      const res = await createBranchSale(payload);
+      setSaleDrawerOpen(false);
+      setSaleForm(emptySaleForm());
+      setSuccess(
+        res.data?.promotion
+          ? "Branch sale created in SDC rows and synced to promotions."
+          : "Branch sale created and added to SDC rows."
+      );
+    } catch (err) {
+      setMessage(err?.response?.data?.message || "Failed to create branch sale.");
+    } finally {
+      setSaleLoading(false);
     }
   };
 
@@ -276,6 +391,9 @@ export default function Motorbikes() {
                 <button type="button" className="button-outline" onClick={openEdit}>
                   Edit
                 </button>
+                <button type="button" className="button-outline" onClick={openSaleDrawer}>
+                  Create Sale
+                </button>
                 <Link
                   className="button-outline"
                   to={`/motorbikes/promotions?chassis=${encodeURIComponent(
@@ -284,7 +402,7 @@ export default function Motorbikes() {
                     selected.name || ""
                   )}&branch=${encodeURIComponent(selected.branchName || "")}`}
                 >
-                  Report Sold
+                  Add to Promotion
                 </Link>
               </div>
             ) : null}
@@ -442,6 +560,161 @@ export default function Motorbikes() {
               Branches come from Location records and are managed on stock side.
             </small>
           </label>
+        </div>
+      </Drawer>
+
+      <Drawer
+        open={saleDrawerOpen}
+        onClose={() => setSaleDrawerOpen(false)}
+        title="Create Branch Sale"
+        footer={
+          <div className="button-row">
+            <button
+              type="button"
+              className="button-outline"
+              onClick={() => setSaleDrawerOpen(false)}
+              disabled={saleLoading}
+            >
+              Cancel
+            </button>
+            <button type="button" onClick={handleCreateSale} disabled={saleLoading}>
+              {saleLoading ? "Saving..." : "Save Sale"}
+            </button>
+          </div>
+        }
+      >
+        <div className="form">
+          <label className="field">
+            Branch
+            <input value={saleForm.branchName} readOnly />
+          </label>
+          <label className="field">
+            Chassis number
+            <input value={saleForm.chassisNumber} readOnly />
+          </label>
+          <label className="field">
+            Model
+            <input value={saleForm.model} readOnly />
+          </label>
+          <label className="field">
+            SDC ID (required)
+            <input
+              value={saleForm.sdcId}
+              onChange={(e) => setSaleForm((p) => ({ ...p, sdcId: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            Sale date
+            <input
+              type="date"
+              value={saleForm.saleDate}
+              onChange={(e) => setSaleForm((p) => ({ ...p, saleDate: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            Customer name
+            <input
+              value={saleForm.customerName}
+              onChange={(e) => setSaleForm((p) => ({ ...p, customerName: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            Buyer TIN
+            <input
+              value={saleForm.buyerTin}
+              onChange={(e) => setSaleForm((p) => ({ ...p, buyerTin: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            Phone number
+            <input
+              value={saleForm.phoneNumber}
+              onChange={(e) => setSaleForm((p) => ({ ...p, phoneNumber: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            Quantity
+            <input
+              type="number"
+              min="0.001"
+              step="0.001"
+              value={saleForm.quantity}
+              onChange={(e) => setSaleForm((p) => ({ ...p, quantity: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            Unit price
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={saleForm.unitPrice}
+              onChange={(e) => setSaleForm((p) => ({ ...p, unitPrice: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            VAT
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={saleForm.vat}
+              onChange={(e) => setSaleForm((p) => ({ ...p, vat: e.target.value }))}
+            />
+          </label>
+          <label className="field">
+            Receipt type
+            <select
+              value={saleForm.receiptType}
+              onChange={(e) => setSaleForm((p) => ({ ...p, receiptType: e.target.value }))}
+            >
+              <option value="Sale">Sale</option>
+              <option value="Refund after Sale">Refund after Sale</option>
+              <option value="Exchange">Exchange</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label className="field checkbox-field">
+            <input
+              type="checkbox"
+              checked={saleForm.addToPromotion}
+              onChange={(e) =>
+                setSaleForm((p) => ({ ...p, addToPromotion: e.target.checked }))
+              }
+            />
+            <span>Also add to Promotions</span>
+          </label>
+          {saleForm.addToPromotion ? (
+            <>
+              <label className="field">
+                Plate number
+                <input
+                  value={saleForm.plateNumber}
+                  onChange={(e) => setSaleForm((p) => ({ ...p, plateNumber: e.target.value }))}
+                />
+              </label>
+              <label className="field checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={saleForm.delivered}
+                  onChange={(e) =>
+                    setSaleForm((p) => ({ ...p, delivered: e.target.checked }))
+                  }
+                />
+                <span>Delivered</span>
+              </label>
+              <label className="field checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={saleForm.stubPaid}
+                  onChange={(e) =>
+                    setSaleForm((p) => ({ ...p, stubPaid: e.target.checked }))
+                  }
+                />
+                <span>Stub paid</span>
+              </label>
+            </>
+          ) : null}
         </div>
       </Drawer>
     </div>

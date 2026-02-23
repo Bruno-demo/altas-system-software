@@ -1,4 +1,5 @@
-// What this does: provides branch-level summaries/details and keeps min-stock settings synchronized.
+// What this does: provides branch-level summaries/details, creates branch motorbike sales, and keeps settings synchronized.
+const { Prisma } = require("@prisma/client");
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
 const {
@@ -9,6 +10,8 @@ const {
   toBranchMinStockMap,
   setBranchMinStock,
 } = require("../utils/branchMinStock");
+
+const BRANCH_SALE_PREFIX = "Motorbike Branch Sale | Branch:";
 
 function s(v) {
   if (v == null) return null;
@@ -54,14 +57,180 @@ function parseNonNegativeInteger(value, fieldName) {
   return parsed;
 }
 
+function parsePositiveNumber(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    const err = new Error(`${fieldName} must be > 0`);
+    err.status = 400;
+    throw err;
+  }
+  return parsed;
+}
+
+function parseNumberOrDefault(value, fallback = 0) {
+  if (value == null || String(value).trim() === "") return Number(fallback) || 0;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return Number(fallback) || 0;
+  return parsed;
+}
+
+function parseBoolean(value, fallback = false) {
+  if (value == null) return fallback;
+  if (typeof value === "boolean") return value;
+  const v = String(value).trim().toLowerCase();
+  if (!v) return fallback;
+  if (["true", "1", "yes", "y", "ok"].includes(v)) return true;
+  if (["false", "0", "no", "n"].includes(v)) return false;
+  return fallback;
+}
+
+function toDayStart(value) {
+  const d = new Date(value);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function toDayEnd(value) {
+  const d = new Date(value);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function resolveSalesRange(query) {
+  const periodRaw = s(query.salePeriod || query.period || "all") || "all";
+  const period = periodRaw.toLowerCase();
+  const fromRaw = s(query.saleFrom || query.from);
+  const toRaw = s(query.saleTo || query.to);
+
+  if (period === "custom" || fromRaw || toRaw) {
+    const start = fromRaw ? toDayStart(`${fromRaw}T00:00:00`) : toDayStart("2000-01-01T00:00:00");
+    const end = toRaw ? toDayEnd(`${toRaw}T00:00:00`) : toDayEnd(new Date());
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      const err = new Error("Invalid custom range. Use YYYY-MM-DD.");
+      err.status = 400;
+      throw err;
+    }
+    return {
+      period: "custom",
+      from: fromRaw || "2000-01-01",
+      to: toRaw || new Date().toISOString().slice(0, 10),
+      start,
+      end,
+    };
+  }
+
+  const now = new Date();
+  let start = null;
+  let end = null;
+
+  if (period === "today") {
+    start = toDayStart(now);
+    end = toDayEnd(now);
+  } else if (period === "this_week") {
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday);
+    start = toDayStart(monday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    end = toDayEnd(sunday);
+  } else if (period === "this_month") {
+    start = toDayStart(new Date(now.getFullYear(), now.getMonth(), 1));
+    end = toDayEnd(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  } else if (period === "this_year") {
+    start = toDayStart(new Date(now.getFullYear(), 0, 1));
+    end = toDayEnd(new Date(now.getFullYear(), 11, 31));
+  } else {
+    start = toDayStart("2000-01-01T00:00:00");
+    end = toDayEnd(now);
+  }
+
+  return {
+    period,
+    from: start.toISOString().slice(0, 10),
+    to: end.toISOString().slice(0, 10),
+    start,
+    end,
+  };
+}
+
+function buildBranchSaleReceiptType(branchName, chassisNumber, receiptType) {
+  const type = s(receiptType) || "Sale";
+  return `${BRANCH_SALE_PREFIX} ${branchName} | Chassis: ${chassisNumber} | Type: ${type}`;
+}
+
+function buildBranchSaleItemName(model, chassisNumber) {
+  return `${model} [${chassisNumber}]`;
+}
+
+function parseChassisFromReceiptType(receiptType) {
+  const raw = String(receiptType || "");
+  const match = raw.match(/chassis:\s*([^|]+)/i);
+  return match?.[1]?.trim() || "-";
+}
+
+function parseModelFromItemName(itemName) {
+  const raw = s(itemName);
+  if (!raw) return "-";
+  const clean = raw.replace(/\s*\[[^\]]+\]\s*$/, "").trim();
+  return clean || raw;
+}
+
+function parseSaleDate(value) {
+  if (!value) return new Date();
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    const err = new Error("saleDate must be a valid date.");
+    err.status = 400;
+    throw err;
+  }
+  return parsed;
+}
+
+function buildBranchSaleSdcWhere(branchLabel, salesRange, q) {
+  const dateWindow = {
+    OR: [
+      { saleDate: { gte: salesRange.start, lte: salesRange.end } },
+      {
+        saleDate: null,
+        createdAt: { gte: salesRange.start, lte: salesRange.end },
+      },
+    ],
+  };
+
+  const branchWindow = {
+    receiptType: {
+      contains: `${BRANCH_SALE_PREFIX} ${branchLabel}`,
+      mode: "insensitive",
+    },
+  };
+
+  const terms = [dateWindow, branchWindow];
+  if (q) {
+    terms.push({
+      OR: [
+        { sdcId: { contains: q, mode: "insensitive" } },
+        { buyerName: { contains: q, mode: "insensitive" } },
+        { buyerTin: { contains: q, mode: "insensitive" } },
+        { itemName: { contains: q, mode: "insensitive" } },
+        { receiptType: { contains: q, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  return { AND: terms };
+}
+
 exports.listBranches = async (req, res) => {
   try {
     const q = s(req.query.q)?.toLowerCase() || "";
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.min(Number(req.query.limit) || 50, 200);
     const skip = (page - 1) * limit;
+    const salesRange = resolveSalesRange(req.query);
 
-    const [locations, productGroups, promoGroups, counterRows] = await Promise.all([
+    const [locations, productGroups, counterRows, branchSaleRows] = await Promise.all([
       prisma.location.findMany({
         orderBy: { name: "asc" },
         select: { id: true, name: true },
@@ -74,12 +243,20 @@ exports.listBranches = async (req, res) => {
         _min: { minStock: true },
         _max: { minStock: true },
       }),
-      prisma.motorbikePromotion.groupBy({
-        by: ["branchName"],
-        _count: { _all: true },
-        _max: { date: true },
-      }),
       listBranchCounterRows(prisma),
+      prisma.$queryRaw(
+        Prisma.sql`
+          SELECT
+            TRIM(SPLIT_PART(SPLIT_PART("receiptType", '| Branch: ', 2), '|', 1)) AS "branchName",
+            COUNT(*)::int AS "count",
+            MAX(COALESCE("saleDate", "createdAt")) AS "lastSoldAt"
+          FROM "SalesSdcRow"
+          WHERE "receiptType" ILIKE ${`${BRANCH_SALE_PREFIX}%`}
+            AND COALESCE("saleDate", "createdAt") >= ${salesRange.start}
+            AND COALESCE("saleDate", "createdAt") <= ${salesRange.end}
+          GROUP BY 1
+        `
+      ),
     ]);
 
     const minStockMap = toBranchMinStockMap(counterRows);
@@ -129,9 +306,10 @@ exports.listBranches = async (req, res) => {
       map.set(key, existing);
     });
 
-    promoGroups.forEach((row) => {
-      const label = normalizeBranchLabel(row.branchName);
-      const key = branchMapKey(row.branchName);
+    (branchSaleRows || []).forEach((row) => {
+      const branchRaw = s(row?.branchName);
+      const label = normalizeBranchLabel(branchRaw);
+      const key = branchMapKey(branchRaw);
       const existing = map.get(key) || {
         branchName: label,
         locationId: null,
@@ -141,8 +319,8 @@ exports.listBranches = async (req, res) => {
         lastSoldAt: null,
         minStock: minStockMap.get(key) ?? 0,
       };
-      existing.soldCount = row._count?._all || 0;
-      existing.lastSoldAt = row._max?.date || null;
+      existing.soldCount = Number(row?.count || 0);
+      existing.lastSoldAt = row?.lastSoldAt || null;
       map.set(key, existing);
     });
 
@@ -182,10 +360,15 @@ exports.listBranches = async (req, res) => {
 
     return res.json({
       meta: { total, page, limit, pages },
+      salesRange: {
+        period: salesRange.period,
+        from: salesRange.from,
+        to: salesRange.to,
+      },
       rows,
     });
   } catch (err) {
-    return handleError(res, err, { status: 500 });
+    return handleError(res, err, { status: err.status || 500 });
   }
 };
 
@@ -201,6 +384,7 @@ exports.getBranchDetail = async (req, res) => {
     const salePage = Math.max(Number(req.query.salePage) || 1, 1);
     const saleLimit = Math.min(Number(req.query.saleLimit) || 10, 50);
     const q = s(req.query.q);
+    const salesRange = resolveSalesRange(req.query);
 
     const { label, filter } = buildBranchFilter(branchParam);
 
@@ -220,7 +404,7 @@ exports.getBranchDetail = async (req, res) => {
       ];
     }
 
-    const saleWhere = { ...filter };
+    const saleWhere = buildBranchSaleSdcWhere(label, salesRange, q);
 
     const [result, counterRows, location] = await Promise.all([
       prisma.$transaction([
@@ -231,16 +415,28 @@ exports.getBranchDetail = async (req, res) => {
           skip: (bikePage - 1) * bikeLimit,
           take: bikeLimit,
         }),
-        prisma.motorbikePromotion.count({ where: saleWhere }),
-        prisma.motorbikePromotion.findMany({
+        prisma.salesSdcRow.count({ where: saleWhere }),
+        prisma.salesSdcRow.findMany({
           where: saleWhere,
-          orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+          orderBy: [{ saleDate: "desc" }, { createdAt: "desc" }],
           skip: (salePage - 1) * saleLimit,
           take: saleLimit,
+          select: {
+            id: true,
+            sdcId: true,
+            saleDate: true,
+            createdAt: true,
+            buyerName: true,
+            itemName: true,
+            quantity: true,
+            unitPrice: true,
+            summaryAmount: true,
+            receiptType: true,
+          },
         }),
-        prisma.motorbikePromotion.aggregate({
+        prisma.salesSdcRow.aggregate({
           where: saleWhere,
-          _max: { date: true },
+          _max: { saleDate: true, createdAt: true },
         }),
         prisma.product.aggregate({
           where: {
@@ -261,7 +457,7 @@ exports.getBranchDetail = async (req, res) => {
           }),
     ]);
 
-    const [bikeTotal, bikes, saleTotal, sales, lastSold, minStockAgg] = result;
+    const [bikeTotal, bikes, saleTotal, salesRaw, lastSold, minStockAgg] = result;
     const minStockMap = toBranchMinStockMap(counterRows);
     const counterMinStock = minStockMap.get(branchMapKey(label));
     const resolvedMinStock =
@@ -269,14 +465,33 @@ exports.getBranchDetail = async (req, res) => {
         ? counterMinStock
         : Number(minStockAgg?._max?.minStock ?? 0);
 
+    const sales = salesRaw.map((row) => ({
+      id: row.id,
+      countingNumber: row.sdcId || "-",
+      date: row.saleDate || row.createdAt || null,
+      customerName: row.buyerName || "-",
+      chassisNumber: parseChassisFromReceiptType(row.receiptType),
+      model: parseModelFromItemName(row.itemName),
+      quantity: toNum(row.quantity || 0),
+      unitPrice: toNum(row.unitPrice || 0),
+      summaryAmount: toNum(row.summaryAmount || 0),
+    }));
+
+    const lastSoldAt = lastSold?._max?.saleDate || lastSold?._max?.createdAt || null;
+
     return res.json({
       branch: {
         name: label,
         locationId: location?.id || null,
         bikesCount: bikeTotal,
         soldCount: saleTotal,
-        lastSoldAt: lastSold?._max?.date || null,
+        lastSoldAt,
         minStock: Number.isNaN(resolvedMinStock) ? 0 : resolvedMinStock,
+      },
+      salesRange: {
+        period: salesRange.period,
+        from: salesRange.from,
+        to: salesRange.to,
       },
       bikes: {
         meta: {
@@ -298,7 +513,175 @@ exports.getBranchDetail = async (req, res) => {
       },
     });
   } catch (err) {
-    return handleError(res, err, { status: 500 });
+    return handleError(res, err, { status: err.status || 500 });
+  }
+};
+
+exports.createBranchSale = async (req, res) => {
+  try {
+    const branchName = s(req.body?.branchName);
+    const chassisNumber = s(req.body?.chassisNumber);
+    const model = s(req.body?.model);
+    const sdcId = s(req.body?.sdcId);
+    const receiptTypeInput = s(req.body?.receiptType) || "Sale";
+    const saleDate = parseSaleDate(req.body?.saleDate);
+
+    if (!branchName) {
+      return res.status(400).json({ message: "branchName is required." });
+    }
+    if (!chassisNumber) {
+      return res.status(400).json({ message: "chassisNumber is required." });
+    }
+    if (!model) {
+      return res.status(400).json({ message: "model is required." });
+    }
+    if (!sdcId) {
+      return res.status(400).json({ message: "SDC ID is required." });
+    }
+
+    const quantity = parsePositiveNumber(req.body?.quantity ?? 1, "quantity");
+    const unitPriceInput = Number(req.body?.unitPrice);
+    const vat = parseNumberOrDefault(req.body?.vat, 0);
+    const buyerTin = s(req.body?.buyerTin);
+    const buyerName = s(req.body?.buyerName);
+    const phoneNumber = s(req.body?.phoneNumber);
+    const plateNumber = s(req.body?.plateNumber);
+    const addToPromotion = parseBoolean(req.body?.addToPromotion, false);
+    const delivered = parseBoolean(req.body?.delivered, false);
+    const stubPaid = parseBoolean(req.body?.stubPaid, false);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const bike = await tx.product.findFirst({
+        where: {
+          isActive: true,
+          category: "Motorbike",
+          OR: [
+            { chassisNumber: { equals: chassisNumber, mode: "insensitive" } },
+            { sku: { equals: chassisNumber, mode: "insensitive" } },
+          ],
+          branchName: { equals: branchName, mode: "insensitive" },
+        },
+        select: {
+          id: true,
+          name: true,
+          sellPrice: true,
+        },
+      });
+
+      if (!bike) {
+        const err = new Error("Motorbike not found in the selected branch.");
+        err.status = 404;
+        throw err;
+      }
+
+      let unitPrice = Number.isFinite(unitPriceInput) && unitPriceInput > 0 ? unitPriceInput : toNum(bike.sellPrice);
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+        const err = new Error("unitPrice must be > 0.");
+        err.status = 400;
+        throw err;
+      }
+
+      const taxableSupplyPriceRaw =
+        req.body?.taxableSupplyPrice != null && String(req.body?.taxableSupplyPrice).trim() !== ""
+          ? Number(req.body.taxableSupplyPrice)
+          : unitPrice * quantity;
+      if (!Number.isFinite(taxableSupplyPriceRaw)) {
+        const err = new Error("taxableSupplyPrice must be numeric.");
+        err.status = 400;
+        throw err;
+      }
+
+      const summaryAmountRaw =
+        req.body?.summaryAmount != null && String(req.body?.summaryAmount).trim() !== ""
+          ? Number(req.body.summaryAmount)
+          : taxableSupplyPriceRaw + vat;
+      if (!Number.isFinite(summaryAmountRaw)) {
+        const err = new Error("summaryAmount must be numeric.");
+        err.status = 400;
+        throw err;
+      }
+
+      const receiptType = buildBranchSaleReceiptType(
+        branchName,
+        chassisNumber,
+        receiptTypeInput
+      );
+      const itemName = buildBranchSaleItemName(model, chassisNumber);
+
+      const sdcRow = await tx.salesSdcRow.create({
+        data: {
+          sdcId,
+          buyerTin: buyerTin || null,
+          buyerName: buyerName || null,
+          saleDate,
+          receiptType,
+          itemName,
+          quantity: Number(quantity.toFixed(3)),
+          unitPrice: Number(unitPrice.toFixed(2)),
+          taxableSupplyPrice: Number(taxableSupplyPriceRaw.toFixed(2)),
+          vat: Number(vat.toFixed(2)),
+          summaryAmount: Number(summaryAmountRaw.toFixed(2)),
+          uploadedById: req.user.id,
+        },
+      });
+
+      let promotion = null;
+      if (addToPromotion) {
+        const existingPromotion = await tx.motorbikePromotion.findUnique({
+          where: { chassisNumber },
+        });
+
+        const promotionData = {
+          date: saleDate,
+          customerName: buyerName || null,
+          chassisNumber,
+          plateNumber: plateNumber || null,
+          model,
+          phoneNumber: phoneNumber || null,
+          delivered,
+          stubPaid,
+          branchName,
+        };
+
+        if (existingPromotion) {
+          promotion = await tx.motorbikePromotion.update({
+            where: { id: existingPromotion.id },
+            data: promotionData,
+          });
+        } else {
+          const counter = await tx.counter.upsert({
+            where: { id: "MOTORBIKE_PROMO" },
+            update: { value: { increment: 1 } },
+            create: { id: "MOTORBIKE_PROMO", value: 1 },
+          });
+
+          promotion = await tx.motorbikePromotion.create({
+            data: {
+              countingNumber: String(counter.value),
+              ...promotionData,
+            },
+          });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: "MOTORBIKE_BRANCH_SALE_CREATE",
+          details: `Branch=${branchName} SDC=${sdcId} Chassis=${chassisNumber} addToPromotion=${addToPromotion}`,
+        },
+      });
+
+      return { sdcRow, promotion };
+    });
+
+    return res.status(201).json({
+      message: "Branch sale saved to SDC rows.",
+      row: result.sdcRow,
+      promotion: result.promotion,
+    });
+  } catch (err) {
+    return handleError(res, err, { status: err.status || 500 });
   }
 };
 

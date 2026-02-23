@@ -12,6 +12,7 @@ const UNIQUE_FIELD_MESSAGES = {
   name: "Name already exists.",
   code: "Code already exists.",
   invoiceNo: "Invoice number already exists.",
+  sdcId: "This SDC ID already has the same item.",
 };
 
 function logError(err, context, metadata = {}) {
