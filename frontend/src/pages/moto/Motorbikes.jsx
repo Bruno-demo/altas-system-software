@@ -65,6 +65,7 @@ export default function Motorbikes() {
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
   const [saleForm, setSaleForm] = useState(emptySaleForm);
   const [saleLoading, setSaleLoading] = useState(false);
+  const [soldBikeIds, setSoldBikeIds] = useState(() => new Set());
 
   const loadMotorbikes = async () => {
     setLoading(true);
@@ -160,6 +161,10 @@ export default function Motorbikes() {
 
   const openSaleDrawer = () => {
     if (!selected) return;
+    if (soldBikeIds.has(selected.id)) {
+      setMessage("This bike is already sold.");
+      return;
+    }
     setSaleForm({
       ...emptySaleForm(),
       branchName: selected.branchName || "",
@@ -230,10 +235,6 @@ export default function Motorbikes() {
       setMessage("Branch is required.");
       return;
     }
-    if (!saleForm.chassisNumber.trim()) {
-      setMessage("Chassis number is required.");
-      return;
-    }
     if (!saleForm.model.trim()) {
       setMessage("Model is required.");
       return;
@@ -263,7 +264,7 @@ export default function Motorbikes() {
     try {
       const payload = {
         branchName: saleForm.branchName.trim(),
-        chassisNumber: saleForm.chassisNumber.trim(),
+        chassisNumber: saleForm.chassisNumber.trim() || undefined,
         model: saleForm.model.trim(),
         saleDate: saleForm.saleDate || undefined,
         sdcId: saleForm.sdcId.trim(),
@@ -282,6 +283,9 @@ export default function Motorbikes() {
 
       const res = await createBranchSale(payload);
       setSaleDrawerOpen(false);
+      if (selected?.id) {
+        setSoldBikeIds((prev) => new Set([...prev, selected.id]));
+      }
       setSaleForm(emptySaleForm());
       setSuccess(
         res.data?.promotion
@@ -391,9 +395,11 @@ export default function Motorbikes() {
                 <button type="button" className="button-outline" onClick={openEdit}>
                   Edit
                 </button>
-                <button type="button" className="button-outline" onClick={openSaleDrawer}>
-                  Create Sale
-                </button>
+                {!soldBikeIds.has(selected.id) ? (
+                  <button type="button" className="button-outline" onClick={openSaleDrawer}>
+                    Create Sale
+                  </button>
+                ) : null}
                 <Link
                   className="button-outline"
                   to={`/motorbikes/promotions?chassis=${encodeURIComponent(
@@ -589,7 +595,7 @@ export default function Motorbikes() {
             <input value={saleForm.branchName} readOnly />
           </label>
           <label className="field">
-            Chassis number
+            Chassis number (optional)
             <input value={saleForm.chassisNumber} readOnly />
           </label>
           <label className="field">

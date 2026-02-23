@@ -157,17 +157,22 @@ function resolveSalesRange(query) {
 
 function buildBranchSaleReceiptType(branchName, chassisNumber, receiptType) {
   const type = s(receiptType) || "Sale";
-  return `${BRANCH_SALE_PREFIX} ${branchName} | Chassis: ${chassisNumber} | Type: ${type}`;
+  const chassisText = s(chassisNumber) || "N/A";
+  return `${BRANCH_SALE_PREFIX} ${branchName} | Chassis: ${chassisText} | Type: ${type}`;
 }
 
 function buildBranchSaleItemName(model, chassisNumber) {
-  return `${model} [${chassisNumber}]`;
+  const modelText = s(model) || "Motorbike";
+  const chassisText = s(chassisNumber);
+  return chassisText ? `${modelText} [${chassisText}]` : modelText;
 }
 
 function parseChassisFromReceiptType(receiptType) {
   const raw = String(receiptType || "");
   const match = raw.match(/chassis:\s*([^|]+)/i);
-  return match?.[1]?.trim() || "-";
+  const parsed = match?.[1]?.trim();
+  if (!parsed || parsed.toLowerCase() === "n/a") return "-";
+  return parsed;
 }
 
 function parseModelFromItemName(itemName) {
@@ -529,9 +534,6 @@ exports.createBranchSale = async (req, res) => {
     if (!branchName) {
       return res.status(400).json({ message: "branchName is required." });
     }
-    if (!chassisNumber) {
-      return res.status(400).json({ message: "chassisNumber is required." });
-    }
     if (!model) {
       return res.status(400).json({ message: "model is required." });
     }
@@ -549,27 +551,52 @@ exports.createBranchSale = async (req, res) => {
     const addToPromotion = parseBoolean(req.body?.addToPromotion, false);
     const delivered = parseBoolean(req.body?.delivered, false);
     const stubPaid = parseBoolean(req.body?.stubPaid, false);
+    if (addToPromotion && !chassisNumber) {
+      return res
+        .status(400)
+        .json({ message: "Chassis number is required to add this sale to promotion." });
+    }
 
     const result = await prisma.$transaction(async (tx) => {
-      const bike = await tx.product.findFirst({
-        where: {
-          isActive: true,
-          category: "Motorbike",
-          OR: [
-            { chassisNumber: { equals: chassisNumber, mode: "insensitive" } },
-            { sku: { equals: chassisNumber, mode: "insensitive" } },
-          ],
-          branchName: { equals: branchName, mode: "insensitive" },
-        },
-        select: {
-          id: true,
-          name: true,
-          sellPrice: true,
-        },
-      });
+      let bike = null;
+      if (chassisNumber) {
+        bike = await tx.product.findFirst({
+          where: {
+            isActive: true,
+            category: "Motorbike",
+            OR: [
+              { chassisNumber: { equals: chassisNumber, mode: "insensitive" } },
+              { sku: { equals: chassisNumber, mode: "insensitive" } },
+            ],
+            branchName: { equals: branchName, mode: "insensitive" },
+          },
+          select: {
+            id: true,
+            name: true,
+            sellPrice: true,
+          },
+        });
+      } else {
+        bike = await tx.product.findFirst({
+          where: {
+            isActive: true,
+            category: "Motorbike",
+            name: { equals: model, mode: "insensitive" },
+            branchName: { equals: branchName, mode: "insensitive" },
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            name: true,
+            sellPrice: true,
+          },
+        });
+      }
 
-      if (!bike) {
-        const err = new Error("Motorbike not found in the selected branch.");
+      if (!bike && (!Number.isFinite(unitPriceInput) || unitPriceInput <= 0)) {
+        const err = new Error(
+          "Motorbike not found in selected branch. Provide unit price to save this sale."
+        );
         err.status = 404;
         throw err;
       }
@@ -668,7 +695,7 @@ exports.createBranchSale = async (req, res) => {
         data: {
           userId: req.user.id,
           action: "MOTORBIKE_BRANCH_SALE_CREATE",
-          details: `Branch=${branchName} SDC=${sdcId} Chassis=${chassisNumber} addToPromotion=${addToPromotion}`,
+          details: `Branch=${branchName} SDC=${sdcId} Chassis=${chassisNumber || "-"} addToPromotion=${addToPromotion}`,
         },
       });
 

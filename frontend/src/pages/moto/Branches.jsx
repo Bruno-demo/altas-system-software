@@ -110,6 +110,7 @@ export default function Branches() {
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
   const [saleDrawerLoading, setSaleDrawerLoading] = useState(false);
   const [saleForm, setSaleForm] = useState(emptySaleForm());
+  const [soldBikeIds, setSoldBikeIds] = useState(() => new Set());
 
   const branchPages = meta?.pages || 1;
   const bikePages = detail?.bikes?.meta?.pages || 1;
@@ -231,6 +232,32 @@ export default function Branches() {
     const timer = setTimeout(() => setSaleSuccess(""), 3000);
     return () => clearTimeout(timer);
   }, [saleSuccess]);
+
+  useEffect(() => {
+    const bikes = detail?.bikes?.rows || [];
+    const sales = detail?.sales?.rows || [];
+    if (!bikes.length) {
+      setSoldBikeIds(new Set());
+      return;
+    }
+
+    const soldChassis = new Set(
+      sales
+        .map((row) => String(row?.chassisNumber || "").trim().toLowerCase())
+        .filter((value) => value && value !== "-" && value !== "n/a")
+    );
+
+    const next = new Set();
+    bikes.forEach((bike) => {
+      const bikeKey = String(bike?.chassisNumber || bike?.sku || "")
+        .trim()
+        .toLowerCase();
+      if (bikeKey && soldChassis.has(bikeKey)) {
+        next.add(bike.id);
+      }
+    });
+    setSoldBikeIds(next);
+  }, [detail?.bikes?.rows, detail?.sales?.rows]);
 
   const applySearch = (event) => {
     event.preventDefault();
@@ -376,6 +403,10 @@ export default function Branches() {
 
   const openSaleDrawer = (bikeRow = null) => {
     if (!selectedBranch) return;
+    if (bikeRow?.id && soldBikeIds.has(bikeRow.id)) {
+      setMessage("This bike is already sold.");
+      return;
+    }
     const sourceBike = bikeRow || branchBikeOptions[0] || null;
     setSaleForm({
       ...emptySaleForm(),
@@ -409,10 +440,6 @@ export default function Branches() {
       setMessage("Branch is required.");
       return;
     }
-    if (!saleForm.chassisNumber.trim()) {
-      setMessage("Chassis number is required.");
-      return;
-    }
     if (!saleForm.model.trim()) {
       setMessage("Model is required.");
       return;
@@ -442,7 +469,7 @@ export default function Branches() {
     try {
       const payload = {
         branchName: saleForm.branchName.trim(),
-        chassisNumber: saleForm.chassisNumber.trim(),
+        chassisNumber: saleForm.chassisNumber.trim() || undefined,
         model: saleForm.model.trim(),
         saleDate: saleForm.saleDate || undefined,
         sdcId: saleForm.sdcId.trim(),
@@ -461,6 +488,9 @@ export default function Branches() {
 
       const res = await createBranchSale(payload);
       setSaleDrawerOpen(false);
+      if (saleForm.bikeId) {
+        setSoldBikeIds((prev) => new Set([...prev, saleForm.bikeId]));
+      }
       setSaleForm(emptySaleForm());
       setSaleSuccess(
         res.data?.promotion
@@ -827,13 +857,15 @@ export default function Branches() {
                       <div className="button-row">
                         {canWrite ? (
                           <>
-                            <button
-                              type="button"
-                              className="button-outline"
-                              onClick={() => openSaleDrawer(row)}
-                            >
-                              Create Sale
-                            </button>
+                            {!soldBikeIds.has(row.id) ? (
+                              <button
+                                type="button"
+                                className="button-outline"
+                                onClick={() => openSaleDrawer(row)}
+                              >
+                                Create Sale
+                              </button>
+                            ) : null}
                             <Link
                               className="button-outline"
                               to={`/motorbikes/promotions?chassis=${encodeURIComponent(
@@ -1016,7 +1048,7 @@ export default function Branches() {
             <input value={saleForm.branchName} readOnly />
           </label>
           <label className="field">
-            Chassis number
+            Chassis number (optional)
             <input
               value={saleForm.chassisNumber}
               onChange={(e) =>
