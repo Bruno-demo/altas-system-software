@@ -1,47 +1,76 @@
 // What this does: lets cashier search products and immediately see availability + top bin suggestions
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "../../api/http";
 
-const receiptBaseUrl = import.meta.env.VITE_API_URL || "";
-
 export default function PosSearch() {
-  const [q, setQ] = useState("");
+  const [qInput, setQInput] = useState("");
+  const [activeQuery, setActiveQuery] = useState("");
   const [rows, setRows] = useState([]);
   const [msg, setMsg] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState({ total: 0, page: 1, pages: 1, limit: 10 });
 
-  const search = async (e) => {
-    e.preventDefault();
+  const totalPages = Math.max(Number(meta?.pages || 1), 1);
+
+  const runSearch = async ({ query = activeQuery, nextPage = page, nextLimit = limit } = {}) => {
+    const cleanQuery = String(query || "").trim();
+    if (!cleanQuery) {
+      setMsg("Type at least 2 characters to search.");
+      setRows([]);
+      setMeta({ total: 0, page: 1, pages: 1, limit: nextLimit });
+      return;
+    }
+
     setMsg("");
-
     try {
-      const res = await api.get(
-        `/api/products/search?q=${encodeURIComponent(q)}`
-      );
+      const res = await api.get("/api/products/search", {
+        params: {
+          q: cleanQuery,
+          page: nextPage,
+          limit: nextLimit,
+        },
+      });
       const items = Array.isArray(res.data?.rows)
         ? res.data.rows
         : Array.isArray(res.data?.items)
           ? res.data.items
           : [];
+      const apiMeta = res.data?.meta || {
+        total: items.length,
+        page: nextPage,
+        pages: 1,
+        limit: nextLimit,
+      };
+
       setRows(items);
+      setActiveQuery(cleanQuery);
+      setPage(Number(apiMeta.page || nextPage));
+      setMeta({
+        total: Number(apiMeta.total || items.length),
+        page: Number(apiMeta.page || nextPage),
+        pages: Math.max(Number(apiMeta.pages || 1), 1),
+        limit: Number(apiMeta.limit || nextLimit),
+      });
     } catch (err) {
       setMsg(err?.response?.data?.message || "Search failed");
     }
   };
 
-  const openReceipt = (saleId) => {
-    // What this does: opens the thermal receipt HTML in a new tab and triggers print dialog
-    window.open(
-      `${receiptBaseUrl}/api/sales/${saleId}/receipt-html?autoprint=1`,
-      "_blank"
-    );
+  const search = async (event) => {
+    event.preventDefault();
+    await runSearch({ query: qInput, nextPage: 1, nextLimit: limit });
   };
+
+  const resultCountLabel = useMemo(() => {
+    if (!activeQuery) return "Search name, part number, brand, or category.";
+    return `Results: ${meta.total}`;
+  }, [activeQuery, meta.total]);
 
   return (
     <div className="page pos-search-page">
       <h2>POS Product Search</h2>
-      <p className="muted">
-        Search name, part number, brand, or category.
-      </p>
+      <p className="muted">{resultCountLabel}</p>
 
       {msg ? <div className="alert pos-search-alert">{msg}</div> : null}
 
@@ -49,11 +78,60 @@ export default function PosSearch() {
         <input
           className="pos-search-input"
           placeholder="Search name / partNumber / brand / category..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
+          value={qInput}
+          onChange={(e) => setQInput(e.target.value)}
         />
         <button type="submit">Search</button>
       </form>
+
+      <div className="table-toolbar">
+        <label className="field">
+          Row limit
+          <select
+            value={limit}
+            onChange={(e) => {
+              const nextLimit = Number(e.target.value);
+              setLimit(nextLimit);
+              if (activeQuery) {
+                runSearch({ query: activeQuery, nextPage: 1, nextLimit });
+              }
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </label>
+        <div className="pagination">
+          <button
+            type="button"
+            className="button-outline"
+            disabled={page <= 1 || !activeQuery}
+            onClick={() =>
+              runSearch({ query: activeQuery, nextPage: Math.max(page - 1, 1), nextLimit: limit })
+            }
+          >
+            Prev
+          </button>
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            className="button-outline"
+            disabled={page >= totalPages || !activeQuery}
+            onClick={() =>
+              runSearch({
+                query: activeQuery,
+                nextPage: Math.min(page + 1, totalPages),
+                nextLimit: limit,
+              })
+            }
+          >
+            Next
+          </button>
+        </div>
+      </div>
 
       <div className="pos-search-results">
         {rows.map((r, index) => {
@@ -124,8 +202,6 @@ export default function PosSearch() {
                   <div className="muted">No bin record</div>
                 )}
               </div>
-
-              {/* NOTE: when you have a saleId from createSale, call openReceipt(saleId) */}
             </div>
           );
         })}
@@ -133,4 +209,3 @@ export default function PosSearch() {
     </div>
   );
 }
-

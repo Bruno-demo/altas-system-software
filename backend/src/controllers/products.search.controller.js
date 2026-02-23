@@ -6,6 +6,9 @@ const { handleError } = require("../utils/errors");
 exports.searchProducts = async (req, res) => {
   try {
     const { q, locationId, preferLocationId } = req.query;
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const skip = (page - 1) * limit;
 
     if (!q || String(q).trim().length < 2) {
       return res.status(400).json({ message: "q (min 2 chars) is required" });
@@ -15,52 +18,58 @@ exports.searchProducts = async (req, res) => {
       await ensureCashierMotorbikes(prisma);
     }
 
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        ...(req.user.role === "SALESPERSON"
-          ? {
-              category: "Motorbike",
-              AND: [{ branchName: { not: null } }, { branchName: { not: "" } }],
-            }
-          : {}),
-        ...(req.user.role === "CASHIER"
-          ? {
-              AND: [
-                {
-                  OR: [
-                    { category: { not: "Motorbike" } },
-                    { branchName: null },
-                  ],
-                },
-              ],
-            }
-          : {}),
-        OR: [
-          { name: { contains: String(q), mode: "insensitive" } },
-          { sku: { contains: String(q), mode: "insensitive" } },
-          { partNumber: { contains: String(q), mode: "insensitive" } },
-          { chassisNumber: { contains: String(q), mode: "insensitive" } },
-          { brand: { contains: String(q), mode: "insensitive" } },
-          { category: { contains: String(q), mode: "insensitive" } },
-          { modelCompatibility: { contains: String(q), mode: "insensitive" } },
-        ],
-      },
-      take: 20,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        sku: true,
-        partNumber: true,
-        name: true,
-        unit: true,
-        brand: true,
-        category: true,
-        modelCompatibility: true,
-        minStock: true,
-        branchName: true,
-      },
-    });
+    const where = {
+      isActive: true,
+      ...(req.user.role === "SALESPERSON"
+        ? {
+            category: "Motorbike",
+            AND: [{ branchName: { not: null } }, { branchName: { not: "" } }],
+          }
+        : {}),
+      ...(req.user.role === "CASHIER"
+        ? {
+            AND: [
+              {
+                OR: [
+                  { category: { not: "Motorbike" } },
+                  { branchName: null },
+                ],
+              },
+            ],
+          }
+        : {}),
+      OR: [
+        { name: { contains: String(q), mode: "insensitive" } },
+        { sku: { contains: String(q), mode: "insensitive" } },
+        { partNumber: { contains: String(q), mode: "insensitive" } },
+        { chassisNumber: { contains: String(q), mode: "insensitive" } },
+        { brand: { contains: String(q), mode: "insensitive" } },
+        { category: { contains: String(q), mode: "insensitive" } },
+        { modelCompatibility: { contains: String(q), mode: "insensitive" } },
+      ],
+    };
+
+    const [total, products] = await prisma.$transaction([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          sku: true,
+          partNumber: true,
+          name: true,
+          unit: true,
+          brand: true,
+          category: true,
+          modelCompatibility: true,
+          minStock: true,
+          branchName: true,
+        },
+      }),
+    ]);
 
     const productIds = products.map((p) => p.id);
 
@@ -124,6 +133,12 @@ exports.searchProducts = async (req, res) => {
     res.json({
       q: String(q),
       count: result.length,
+      meta: {
+        total,
+        page,
+        limit,
+        pages: Math.max(Math.ceil(total / limit), 1),
+      },
       preferLocationId: preferredLocation,
       items: result,
     });

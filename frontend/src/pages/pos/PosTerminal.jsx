@@ -11,8 +11,17 @@ function money(n) {
 
 export default function PosTerminal() {
   const [q, setQ] = useState("");
+  const [searchedQuery, setSearchedQuery] = useState("");
   const [results, setResults] = useState([]);
   const [msg, setMsg] = useState("");
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchLimit, setSearchLimit] = useState(10);
+  const [searchMeta, setSearchMeta] = useState({
+    total: 0,
+    page: 1,
+    pages: 1,
+    limit: 10,
+  });
 
   const [cart, setCart] = useState([]); // { key, product, locationId, binId, binCode, qty, unitPrice, discount }
   const [paymentMethod, setPaymentMethod] = useState("CASH");
@@ -50,21 +59,53 @@ export default function PosTerminal() {
     return { subtotal, discountTotal, total };
   }, [cart]);
 
-  const doSearch = async (e) => {
-    e.preventDefault();
+  const runSearch = async ({
+    query = searchedQuery || q,
+    page = searchPage,
+    limit = searchLimit,
+  } = {}) => {
+    const clean = String(query || "").trim();
     setMsg("");
 
-    if (!q.trim()) {
+    if (!clean) {
       setMsg("Type a product name, part number, brand, or category first.");
+      setResults([]);
+      setSearchMeta({ total: 0, page: 1, pages: 1, limit });
+      setSearchPage(1);
       return;
     }
 
     try {
-      const res = await searchProducts(q.trim(), selectedLocationId || undefined);
-      setResults(res.data?.rows || []);
+      const res = await searchProducts({
+        q: clean,
+        locationId: selectedLocationId || undefined,
+        page,
+        limit,
+      });
+      const rows = res.data?.rows || [];
+      const apiMeta = res.data?.meta || {
+        total: rows.length,
+        page,
+        pages: 1,
+        limit,
+      };
+      setResults(rows);
+      setSearchedQuery(clean);
+      setSearchPage(Number(apiMeta.page || page));
+      setSearchMeta({
+        total: Number(apiMeta.total || rows.length),
+        page: Number(apiMeta.page || page),
+        pages: Math.max(Number(apiMeta.pages || 1), 1),
+        limit: Number(apiMeta.limit || limit),
+      });
     } catch (err) {
       setMsg(err?.response?.data?.message || "Search failed");
     }
+  };
+
+  const doSearch = async (e) => {
+    e.preventDefault();
+    await runSearch({ query: q, page: 1, limit: searchLimit });
   };
 
   const addToCart = (row) => {
@@ -142,7 +183,10 @@ export default function PosTerminal() {
 
   const resetSaleState = () => {
     setQ("");
+    setSearchedQuery("");
     setResults([]);
+    setSearchPage(1);
+    setSearchMeta({ total: 0, page: 1, pages: 1, limit: searchLimit });
     clearCart();
     setPaymentMethod("CASH");
     setBuyerType("INDIVIDUAL");
@@ -237,6 +281,9 @@ export default function PosTerminal() {
                 onChange={(e) => {
                   setSelectedLocationId(e.target.value);
                   setResults([]);
+                  setSearchedQuery("");
+                  setSearchPage(1);
+                  setSearchMeta({ total: 0, page: 1, pages: 1, limit: searchLimit });
                 }}
               >
                 {locations.length === 0 ? (
@@ -271,6 +318,68 @@ export default function PosTerminal() {
             />
             <button type="submit">Search</button>
           </form>
+
+          <div className="table-toolbar">
+            <div className="muted">Results: {searchMeta.total || 0}</div>
+            <div className="button-row">
+              <label className="field">
+                Row limit
+                <select
+                  value={searchLimit}
+                  onChange={(e) => {
+                    const nextLimit = Number(e.target.value);
+                    setSearchLimit(nextLimit);
+                    if (searchedQuery) {
+                      runSearch({ query: searchedQuery, page: 1, limit: nextLimit });
+                    }
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </label>
+              <div className="pagination">
+                <button
+                  type="button"
+                  className="button-outline"
+                  disabled={searchPage <= 1 || !searchedQuery}
+                  onClick={() =>
+                    runSearch({
+                      query: searchedQuery,
+                      page: Math.max(searchPage - 1, 1),
+                      limit: searchLimit,
+                    })
+                  }
+                >
+                  Prev
+                </button>
+                <span>
+                  Page {searchPage} of {Math.max(searchMeta.pages || 1, 1)}
+                </span>
+                <button
+                  type="button"
+                  className="button-outline"
+                  disabled={
+                    searchPage >= Math.max(searchMeta.pages || 1, 1) ||
+                    !searchedQuery
+                  }
+                  onClick={() =>
+                    runSearch({
+                      query: searchedQuery,
+                      page: Math.min(
+                        searchPage + 1,
+                        Math.max(searchMeta.pages || 1, 1)
+                      ),
+                      limit: searchLimit,
+                    })
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div className="pos-terminal-results">
             {results.map((row, index) => {

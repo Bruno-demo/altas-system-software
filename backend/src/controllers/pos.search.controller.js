@@ -11,7 +11,9 @@ function s(v) {
 exports.searchProducts = async (req, res) => {
   try {
     const q = s(req.query.q);
-    const limit = Math.min(Number(req.query.limit) || 20, 50);
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const skip = (page - 1) * limit;
     const locationId = req.query.locationId ? String(req.query.locationId).trim() : null;
 
     if (!q) return res.status(400).json({ message: "q is required" });
@@ -44,28 +46,39 @@ exports.searchProducts = async (req, res) => {
       ];
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      take: limit,
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        partNumber: true,
-        brand: true,
-        category: true,
-        modelCompatibility: true,
-        sellPrice: true,
-        minStock: true,
-        chassisNumber: true,
-        modelYear: true,
-        branchName: true,
-      },
-    });
+    const [total, products] = await prisma.$transaction([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          partNumber: true,
+          brand: true,
+          category: true,
+          modelCompatibility: true,
+          sellPrice: true,
+          minStock: true,
+          chassisNumber: true,
+          modelYear: true,
+          branchName: true,
+        },
+      }),
+    ]);
 
     const productIds = products.map((p) => p.id);
-    if (productIds.length === 0) return res.json({ q, rows: [] });
+    if (productIds.length === 0) {
+      return res.json({
+        q,
+        locationId: locationId || null,
+        meta: { total, page, limit, pages: Math.max(Math.ceil(total / limit), 1) },
+        rows: [],
+      });
+    }
 
     // What this does: fetch inventory per bin for these products
     const inventoryRows = await prisma.inventory.findMany({
@@ -119,7 +132,12 @@ exports.searchProducts = async (req, res) => {
         allBins: isMotorbike ? [] : info.bins,
       };
     });
-    return res.json({ q, locationId: locationId || null, rows });
+    return res.json({
+      q,
+      locationId: locationId || null,
+      meta: { total, page, limit, pages: Math.max(Math.ceil(total / limit), 1) },
+      rows,
+    });
   } catch (err) {
     return handleError(res, err, { status: 500 });
   }
