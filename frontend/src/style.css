@@ -474,11 +474,20 @@ button.pos-terminal-clear {
   gap: 14px;
   align-items: end;
   margin-bottom: 18px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.filters-grid > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .filter-actions {
   display: flex;
   justify-content: flex-end;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .filter-row {
@@ -486,15 +495,19 @@ button.pos-terminal-clear {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
 }
 
 .filter-row > * {
   min-width: 0;
+  max-width: 100%;
 }
 
 .filter-row input {
-  flex: 1;
-  min-width: 220px;
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .split-view {
@@ -1249,6 +1262,17 @@ button.picker-item:hover {
   display: grid;
   gap: 6px;
   font-size: 14px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.field input:not([type="checkbox"]):not([type="radio"]),
+.field select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .checkbox-field {
@@ -1355,11 +1379,13 @@ select:focus {
 .filter-row select {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
 }
 
 .filter-row select {
-  flex: 1;
-  min-width: 220px;
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 button {
