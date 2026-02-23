@@ -136,7 +136,7 @@ exports.createSale = async (req, res) => {
 
       for (const it of items) {
         const qty = Number(it.quantity);
-        const unitPrice = Number(it.unitPrice);
+        let unitPrice = Number(it.unitPrice);
         const discount = it.discount != null ? Number(it.discount) : 0;
 
         // Validate product exists
@@ -147,6 +147,14 @@ exports.createSale = async (req, res) => {
         const locationId = isMotorbike
           ? await resolveMotorbikeLocationId()
           : it.locationId;
+
+        // What this does: if frontend sends 0 for motorbikes, fallback to product sellPrice.
+        if (isMotorbike && (Number.isNaN(unitPrice) || unitPrice <= 0)) {
+          const productSellPrice = Number(product.sellPrice || 0);
+          if (Number.isFinite(productSellPrice) && productSellPrice > 0) {
+            unitPrice = productSellPrice;
+          }
+        }
 
         if (!locationId) {
           throw new Error("locationId is required for non-motorbike products");
@@ -182,6 +190,10 @@ exports.createSale = async (req, res) => {
               `Not enough stock for ${product.name} in bin ${bin.code}. Requested=${qty}, Available=${inv.quantity}`
             );
           }
+        }
+
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+          throw new Error("unitPrice must be >= 0");
         }
 
         if (isMotorbike && unitPrice <= 0) {
