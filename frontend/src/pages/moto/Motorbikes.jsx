@@ -65,7 +65,6 @@ export default function Motorbikes() {
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
   const [saleForm, setSaleForm] = useState(emptySaleForm);
   const [saleLoading, setSaleLoading] = useState(false);
-  const [soldBikeIds, setSoldBikeIds] = useState(() => new Set());
 
   const loadMotorbikes = async () => {
     setLoading(true);
@@ -77,8 +76,9 @@ export default function Motorbikes() {
         category: "Motorbike",
       });
       setRows(res.data || []);
-      if (selected && !(res.data || []).some((row) => row.id === selected.id)) {
-        setSelected(null);
+      if (selected) {
+        const refreshedSelection = (res.data || []).find((row) => row.id === selected.id);
+        setSelected(refreshedSelection || null);
       }
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load motorbikes.");
@@ -161,7 +161,7 @@ export default function Motorbikes() {
 
   const openSaleDrawer = () => {
     if (!selected) return;
-    if (soldBikeIds.has(selected.id)) {
+    if (selected?.isSold) {
       setMessage("This bike is already sold.");
       return;
     }
@@ -283,10 +283,8 @@ export default function Motorbikes() {
 
       const res = await createBranchSale(payload);
       setSaleDrawerOpen(false);
-      if (selected?.id) {
-        setSoldBikeIds((prev) => new Set([...prev, selected.id]));
-      }
       setSaleForm(emptySaleForm());
+      await loadMotorbikes();
       setSuccess(
         res.data?.promotion
           ? "Branch sale created in SDC rows and synced to promotions."
@@ -395,7 +393,7 @@ export default function Motorbikes() {
                 <button type="button" className="button-outline" onClick={openEdit}>
                   Edit
                 </button>
-                {!soldBikeIds.has(selected.id) ? (
+                {!selected?.isSold ? (
                   <button type="button" className="button-outline" onClick={openSaleDrawer}>
                     Create Sale
                   </button>

@@ -110,7 +110,6 @@ export default function Branches() {
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
   const [saleDrawerLoading, setSaleDrawerLoading] = useState(false);
   const [saleForm, setSaleForm] = useState(emptySaleForm());
-  const [soldBikeIds, setSoldBikeIds] = useState(() => new Set());
 
   const branchPages = meta?.pages || 1;
   const bikePages = detail?.bikes?.meta?.pages || 1;
@@ -124,6 +123,10 @@ export default function Branches() {
   const selectedLocationId =
     selectedSummary?.locationId || detail?.branch?.locationId || "";
   const branchBikeOptions = detail?.bikes?.rows || [];
+  const saleBikeOptions = useMemo(
+    () => branchBikeOptions.filter((row) => !row?.isSold),
+    [branchBikeOptions]
+  );
 
   const buildSalesFilterParams = () => ({
     salePeriod,
@@ -232,32 +235,6 @@ export default function Branches() {
     const timer = setTimeout(() => setSaleSuccess(""), 3000);
     return () => clearTimeout(timer);
   }, [saleSuccess]);
-
-  useEffect(() => {
-    const bikes = detail?.bikes?.rows || [];
-    const sales = detail?.sales?.rows || [];
-    if (!bikes.length) {
-      setSoldBikeIds(new Set());
-      return;
-    }
-
-    const soldChassis = new Set(
-      sales
-        .map((row) => String(row?.chassisNumber || "").trim().toLowerCase())
-        .filter((value) => value && value !== "-" && value !== "n/a")
-    );
-
-    const next = new Set();
-    bikes.forEach((bike) => {
-      const bikeKey = String(bike?.chassisNumber || bike?.sku || "")
-        .trim()
-        .toLowerCase();
-      if (bikeKey && soldChassis.has(bikeKey)) {
-        next.add(bike.id);
-      }
-    });
-    setSoldBikeIds(next);
-  }, [detail?.bikes?.rows, detail?.sales?.rows]);
 
   const applySearch = (event) => {
     event.preventDefault();
@@ -403,11 +380,11 @@ export default function Branches() {
 
   const openSaleDrawer = (bikeRow = null) => {
     if (!selectedBranch) return;
-    if (bikeRow?.id && soldBikeIds.has(bikeRow.id)) {
+    if (bikeRow?.isSold) {
       setMessage("This bike is already sold.");
       return;
     }
-    const sourceBike = bikeRow || branchBikeOptions[0] || null;
+    const sourceBike = bikeRow || saleBikeOptions[0] || branchBikeOptions[0] || null;
     setSaleForm({
       ...emptySaleForm(),
       bikeId: sourceBike?.id || "",
@@ -488,9 +465,6 @@ export default function Branches() {
 
       const res = await createBranchSale(payload);
       setSaleDrawerOpen(false);
-      if (saleForm.bikeId) {
-        setSoldBikeIds((prev) => new Set([...prev, saleForm.bikeId]));
-      }
       setSaleForm(emptySaleForm());
       setSaleSuccess(
         res.data?.promotion
@@ -857,7 +831,7 @@ export default function Branches() {
                       <div className="button-row">
                         {canWrite ? (
                           <>
-                            {!soldBikeIds.has(row.id) ? (
+                            {!row?.isSold ? (
                               <button
                                 type="button"
                                 className="button-outline"
@@ -1027,15 +1001,15 @@ export default function Branches() {
         }
       >
         <div className="form">
-          {branchBikeOptions.length ? (
+          {saleBikeOptions.length ? (
             <label className="field">
-              Pick branch bike
+              Pick unsold branch bike
               <select
                 value={saleForm.bikeId}
                 onChange={(e) => applyBikeToSale(e.target.value)}
               >
                 <option value="">Manual</option>
-                {branchBikeOptions.map((bike) => (
+                {saleBikeOptions.map((bike) => (
                   <option key={bike.id} value={bike.id}>
                     {bike.name} | {bike.chassisNumber || bike.sku}
                   </option>

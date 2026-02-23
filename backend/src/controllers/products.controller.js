@@ -1,4 +1,5 @@
 // What this does: creates products and lists/searches products for spare parts (brand, category, compatibility)
+const { Prisma } = require("@prisma/client");
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
 const {
@@ -8,6 +9,7 @@ const {
 
 // What this does: allowed categories for your moto spare parts shop
 const ALLOWED_CATEGORIES = ["Brake", "Chain", "Engine", "Electrical", "Motorbike"];
+const BRANCH_SALE_PREFIX = "Motorbike Branch Sale | Branch:";
 
 exports.createProduct = async (req, res) => {
   try {
@@ -196,7 +198,49 @@ exports.listProducts = async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
-    res.json(products);
+    const motorbikeRows = products.filter((row) => row.category === "Motorbike");
+    if (!motorbikeRows.length) {
+      return res.json(products);
+    }
+
+    const chassisCandidates = Array.from(
+      new Set(
+        motorbikeRows
+          .map((row) => String(row.chassisNumber || row.sku || "").trim())
+          .filter(Boolean)
+      )
+    );
+
+    let soldChassisSet = new Set();
+    if (chassisCandidates.length) {
+      const soldRows = await prisma.$queryRaw(
+        Prisma.sql`
+          SELECT DISTINCT TRIM(SPLIT_PART(SPLIT_PART("receiptType", '| Chassis: ', 2), '|', 1)) AS "chassis"
+          FROM "SalesSdcRow"
+          WHERE "receiptType" ILIKE ${`${BRANCH_SALE_PREFIX}%`}
+            AND TRIM(SPLIT_PART(SPLIT_PART("receiptType", '| Chassis: ', 2), '|', 1)) IN (
+              ${Prisma.join(chassisCandidates.map((value) => Prisma.sql`${value}`))}
+            )
+        `
+      );
+
+      soldChassisSet = new Set(
+        (soldRows || [])
+          .map((row) => String(row?.chassis || "").trim().toLowerCase())
+          .filter((value) => value && value !== "n/a")
+      );
+    }
+
+    const withSoldState = products.map((row) => {
+      if (row.category !== "Motorbike") return row;
+      const key = String(row.chassisNumber || row.sku || "").trim().toLowerCase();
+      return {
+        ...row,
+        isSold: key ? soldChassisSet.has(key) : false,
+      };
+    });
+
+    return res.json(withSoldState);
   } catch (err) {
     return handleError(res, err, { status: 500 });
   }

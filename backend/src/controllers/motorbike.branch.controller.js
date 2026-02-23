@@ -411,7 +411,7 @@ exports.getBranchDetail = async (req, res) => {
 
     const saleWhere = buildBranchSaleSdcWhere(label, salesRange, q);
 
-    const [result, counterRows, location] = await Promise.all([
+    const [result, counterRows, location, soldChassisRows] = await Promise.all([
       prisma.$transaction([
         prisma.product.count({ where: bikeWhere }),
         prisma.product.findMany({
@@ -460,6 +460,14 @@ exports.getBranchDetail = async (req, res) => {
             where: { name: { equals: label, mode: "insensitive" } },
             select: { id: true, name: true },
           }),
+      prisma.$queryRaw(
+        Prisma.sql`
+          SELECT DISTINCT TRIM(SPLIT_PART(SPLIT_PART("receiptType", '| Chassis: ', 2), '|', 1)) AS "chassis"
+          FROM "SalesSdcRow"
+          WHERE "receiptType" ILIKE ${`${BRANCH_SALE_PREFIX} ${label}%`}
+            AND TRIM(SPLIT_PART(SPLIT_PART("receiptType", '| Chassis: ', 2), '|', 1)) <> 'N/A'
+        `
+      ),
     ]);
 
     const [bikeTotal, bikes, saleTotal, salesRaw, lastSold, minStockAgg] = result;
@@ -469,6 +477,20 @@ exports.getBranchDetail = async (req, res) => {
       counterMinStock != null
         ? counterMinStock
         : Number(minStockAgg?._max?.minStock ?? 0);
+
+    const soldChassisSet = new Set(
+      (soldChassisRows || [])
+        .map((row) => String(row?.chassis || "").trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    const bikesWithSoldState = bikes.map((row) => {
+      const key = String(row?.chassisNumber || row?.sku || "").trim().toLowerCase();
+      return {
+        ...row,
+        isSold: key ? soldChassisSet.has(key) : false,
+      };
+    });
 
     const sales = salesRaw.map((row) => ({
       id: row.id,
@@ -505,7 +527,7 @@ exports.getBranchDetail = async (req, res) => {
           limit: bikeLimit,
           pages: Math.max(Math.ceil(bikeTotal / bikeLimit), 1),
         },
-        rows: bikes,
+        rows: bikesWithSoldState,
       },
       sales: {
         meta: {
