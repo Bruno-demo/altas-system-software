@@ -1,8 +1,13 @@
 // What this does: wraps sales endpoints for POS (create sale + list invoices)
 import { api } from "./http";
 
-export const searchProducts = (q) =>
-  api.get(`/api/pos/products/search?q=${encodeURIComponent(q)}`);
+export const searchProducts = (q, locationId) =>
+  api.get("/api/pos/products/search", {
+    params: {
+      q,
+      ...(locationId ? { locationId } : {}),
+    },
+  });
 
 export const createSale = (payload) => api.post("/api/pos/sales", payload);
 

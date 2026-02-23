@@ -60,7 +60,7 @@ export default function PosTerminal() {
     }
 
     try {
-      const res = await searchProducts(q.trim());
+      const res = await searchProducts(q.trim(), selectedLocationId || undefined);
       setResults(res.data?.rows || []);
     } catch (err) {
       setMsg(err?.response?.data?.message || "Search failed");
@@ -78,6 +78,18 @@ export default function PosTerminal() {
     if (!rec && !isMotorbike) {
       setMsg(
         `No recommended bin found for "${product?.name || "this product"}".`
+      );
+      return;
+    }
+
+    if (
+      !isMotorbike &&
+      selectedLocationId &&
+      rec?.locationId &&
+      rec.locationId !== selectedLocationId
+    ) {
+      setMsg(
+        `Selected location does not match stock location for "${product?.name || "this product"}". Search again after changing location.`
       );
       return;
     }
@@ -222,7 +234,10 @@ export default function PosTerminal() {
               Location
               <select
                 value={selectedLocationId}
-                onChange={(e) => setSelectedLocationId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedLocationId(e.target.value);
+                  setResults([]);
+                }}
               >
                 {locations.length === 0 ? (
                   <option value="">Loading locations...</option>
@@ -262,6 +277,11 @@ export default function PosTerminal() {
               const product = row.product || {};
               const isMotorbike =
                 product.category === "Motorbike" || Boolean(product.chassisNumber);
+              const locationMismatch =
+                !isMotorbike &&
+                Boolean(selectedLocationId) &&
+                Boolean(row.recommended?.locationId) &&
+                row.recommended.locationId !== selectedLocationId;
               const availability = row.availability || {};
               const totalQty = Number(availability.totalQty || 0);
               const status = isMotorbike
@@ -312,7 +332,7 @@ export default function PosTerminal() {
                     <button
                       type="button"
                       onClick={() => addToCart(row)}
-                      disabled={!row.recommended && !isMotorbike}
+                      disabled={(!row.recommended && !isMotorbike) || locationMismatch}
                       className="pos-terminal-add"
                     >
                       Add
