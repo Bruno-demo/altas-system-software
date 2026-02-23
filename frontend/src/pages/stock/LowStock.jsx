@@ -1,5 +1,5 @@
 // What this does: shows low-stock items with optional aggregation
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { listLocations, listLowStock } from "../../api/inventory";
 
 export default function LowStock() {
@@ -12,6 +12,8 @@ export default function LowStock() {
   const [selected, setSelected] = useState(null);
   const [selectedKey, setSelectedKey] = useState("");
   const [mode, setMode] = useState("PER_LOCATION");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   useEffect(() => {
     const loadLocations = async () => {
@@ -46,6 +48,16 @@ export default function LowStock() {
     loadLowStock();
   }, [locationId, aggregate]);
 
+  const totalPages = Math.max(Math.ceil(rows.length / limit), 1);
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * limit;
+    return rows.slice(start, start + limit);
+  }, [rows, page, limit]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   return (
     <div className="page">
       <div className="page-header">
@@ -65,7 +77,10 @@ export default function LowStock() {
           Location
           <select
             value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
+            onChange={(e) => {
+              setLocationId(e.target.value);
+              setPage(1);
+            }}
             disabled={aggregate}
           >
             <option value="">All</option>
@@ -80,10 +95,28 @@ export default function LowStock() {
           Aggregated view
           <select
             value={aggregate ? "true" : "false"}
-            onChange={(e) => setAggregate(e.target.value === "true")}
+            onChange={(e) => {
+              setAggregate(e.target.value === "true");
+              setPage(1);
+            }}
           >
             <option value="false">Per location</option>
             <option value="true">All locations</option>
+          </select>
+        </label>
+        <label className="field">
+          Row limit
+          <select
+            value={limit}
+            onChange={(e) => {
+              setLimit(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
           </select>
         </label>
       </form>
@@ -99,14 +132,14 @@ export default function LowStock() {
             </div>
             {loading ? (
               <div className="muted">Loading...</div>
-            ) : rows.length ? (
-              rows.map((row, idx) => {
+            ) : pagedRows.length ? (
+              pagedRows.map((row, idx) => {
                 const product = row.product || {};
                 const qty =
                   mode === "PER_LOCATION"
                     ? row.quantity
                     : row.totalQuantity;
-                const key = `${product.id || "row"}-${idx}`;
+                const key = `${product.id || "row"}-${(page - 1) * limit + idx}`;
                 return (
                   <button
                     type="button"
@@ -133,6 +166,29 @@ export default function LowStock() {
             ) : (
               <div className="muted">No low stock items.</div>
             )}
+          </div>
+          <div className="table-toolbar">
+            <div className="pagination">
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page <= 1 || loading}
+              >
+                Prev
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages || loading}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
 

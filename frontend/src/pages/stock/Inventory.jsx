@@ -1,5 +1,5 @@
 // What this does: shows inventory by product/location/bin with filters and preview
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   getProductAvailability,
@@ -20,6 +20,8 @@ export default function Inventory() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   const [selected, setSelected] = useState(null);
   const [availability, setAvailability] = useState(null);
@@ -70,8 +72,19 @@ export default function Inventory() {
     loadInventory();
   }, [q, locationId, binId]);
 
+  const totalPages = Math.max(Math.ceil(rows.length / limit), 1);
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * limit;
+    return rows.slice(start, start + limit);
+  }, [rows, page, limit]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const handleSearch = (event) => {
     event.preventDefault();
+    setPage(1);
     setQ(qInput);
   };
 
@@ -141,6 +154,7 @@ export default function Inventory() {
             onChange={(e) => {
               setLocationId(e.target.value);
               setBinId("");
+              setPage(1);
             }}
           >
             <option value="">All</option>
@@ -153,13 +167,34 @@ export default function Inventory() {
         </label>
         <label className="field">
           Bin
-          <select value={binId} onChange={(e) => setBinId(e.target.value)}>
+          <select
+            value={binId}
+            onChange={(e) => {
+              setBinId(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">All</option>
             {bins.map((bin) => (
               <option key={bin.id} value={bin.id}>
                 {bin.code}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="field">
+          Row limit
+          <select
+            value={limit}
+            onChange={(e) => {
+              setLimit(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
           </select>
         </label>
         <div className="filter-actions">
@@ -185,8 +220,8 @@ export default function Inventory() {
             </div>
             {loading ? (
               <div className="muted">Loading inventory...</div>
-            ) : rows.length ? (
-              rows.map((row) => {
+            ) : pagedRows.length ? (
+              pagedRows.map((row) => {
                 const isLow =
                   Number(row.quantity || 0) <= Number(row.product?.minStock || 0);
                 return (
@@ -213,6 +248,29 @@ export default function Inventory() {
             ) : (
               <div className="muted">No inventory records.</div>
             )}
+          </div>
+          <div className="table-toolbar">
+            <div className="pagination">
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page <= 1 || loading}
+              >
+                Prev
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages || loading}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
 

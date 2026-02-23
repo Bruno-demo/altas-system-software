@@ -1,5 +1,5 @@
 // What this does: manages products with filters and a create drawer
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createProduct, listProducts, updateProduct } from "../../api/inventory";
 import Drawer from "../../components/Drawer";
 
@@ -27,6 +27,8 @@ export default function Products() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   const [selected, setSelected] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -55,8 +57,19 @@ export default function Products() {
     loadProducts();
   }, [q, category, brand]);
 
+  const totalPages = Math.max(Math.ceil(rows.length / limit), 1);
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * limit;
+    return rows.slice(start, start + limit);
+  }, [rows, page, limit]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const handleSearch = (event) => {
     event.preventDefault();
+    setPage(1);
     setQ(qInput);
   };
 
@@ -156,7 +169,10 @@ export default function Products() {
           Category
           <select
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">All</option>
             {categories.map((cat) => (
@@ -171,8 +187,26 @@ export default function Products() {
           <input
             placeholder="Brand"
             value={brand}
-            onChange={(e) => setBrand(e.target.value)}
+            onChange={(e) => {
+              setBrand(e.target.value);
+              setPage(1);
+            }}
           />
+        </label>
+        <label className="field">
+          Row limit
+          <select
+            value={limit}
+            onChange={(e) => {
+              setLimit(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
         </label>
         <div className="filter-actions">
           <button type="submit">Apply Filters</button>
@@ -197,8 +231,8 @@ export default function Products() {
             </div>
             {loading ? (
               <div className="muted">Loading products...</div>
-            ) : rows.length ? (
-              rows.map((row) => (
+            ) : pagedRows.length ? (
+              pagedRows.map((row) => (
                 <button
                   type="button"
                   key={row.id}
@@ -217,6 +251,29 @@ export default function Products() {
             ) : (
               <div className="muted">No products found.</div>
             )}
+          </div>
+          <div className="table-toolbar">
+            <div className="pagination">
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page <= 1 || loading}
+              >
+                Prev
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages || loading}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
 

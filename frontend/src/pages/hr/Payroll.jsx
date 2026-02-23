@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   exportPayrollBankExcel,
   finalizePayroll,
@@ -29,6 +29,8 @@ export default function Payroll() {
   const [runStatusFilter, setRunStatusFilter] = useState("");
   const [runLoading, setRunLoading] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState("");
+  const [itemPage, setItemPage] = useState(1);
+  const [itemLimit, setItemLimit] = useState(20);
 
   const [employees, setEmployees] = useState([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
@@ -108,7 +110,19 @@ export default function Payroll() {
     } else {
       setSelectedItem(null);
     }
+    setItemPage(1);
   }, [run]);
+
+  const payrollItems = run?.items || [];
+  const itemPages = Math.max(Math.ceil(payrollItems.length / itemLimit), 1);
+  const pagedPayrollItems = useMemo(() => {
+    const start = (itemPage - 1) * itemLimit;
+    return payrollItems.slice(start, start + itemLimit);
+  }, [payrollItems, itemPage, itemLimit]);
+
+  useEffect(() => {
+    if (itemPage > itemPages) setItemPage(itemPages);
+  }, [itemPage, itemPages]);
 
   useEffect(() => {
     if (!success) return;
@@ -375,6 +389,21 @@ export default function Payroll() {
               <div className="muted">
                 Employees: {run.items?.length || 0}
               </div>
+              <label className="field">
+                Row limit
+                <select
+                  value={itemLimit}
+                  onChange={(e) => {
+                    setItemLimit(Number(e.target.value));
+                    setItemPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </label>
             </div>
 
             <div className="data-table hr-table payroll-table">
@@ -386,8 +415,8 @@ export default function Payroll() {
                 <div>Late Deduct</div>
                 <div>Net</div>
               </div>
-              {run.items?.length ? (
-                run.items.map((item) => {
+              {pagedPayrollItems.length ? (
+                pagedPayrollItems.map((item) => {
                   const position = item.employee?.position || "";
                   return (
                     <button
@@ -424,6 +453,29 @@ export default function Payroll() {
               ) : (
                 <div className="muted">No payroll items.</div>
               )}
+            </div>
+            <div className="table-toolbar">
+              <div className="pagination">
+                <button
+                  type="button"
+                  className="button-outline"
+                  onClick={() => setItemPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={itemPage <= 1}
+                >
+                  Prev
+                </button>
+                <span>
+                  Page {itemPage} of {itemPages}
+                </span>
+                <button
+                  type="button"
+                  className="button-outline"
+                  onClick={() => setItemPage((prev) => Math.min(prev + 1, itemPages))}
+                  disabled={itemPage >= itemPages}
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </section>
 

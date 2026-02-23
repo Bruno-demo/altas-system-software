@@ -1,5 +1,5 @@
 // What this does: lists bins and lets users create new bin codes
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createBin, createLocation, listBins, listLocations } from "../../api/inventory";
 import Drawer from "../../components/Drawer";
 
@@ -16,6 +16,8 @@ export default function Bins() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -51,6 +53,16 @@ export default function Bins() {
   useEffect(() => {
     loadBins();
   }, [locationId]);
+
+  const totalPages = Math.max(Math.ceil(rows.length / limit), 1);
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * limit;
+    return rows.slice(start, start + limit);
+  }, [rows, page, limit]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const handleCreate = async () => {
     setMessage("");
@@ -103,13 +115,34 @@ export default function Bins() {
       <form className="filters-grid">
         <label className="field">
           Location
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+          <select
+            value={locationId}
+            onChange={(e) => {
+              setLocationId(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">All</option>
             {locations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.name}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="field">
+          Row limit
+          <select
+            value={limit}
+            onChange={(e) => {
+              setLimit(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
           </select>
         </label>
         <div className="filter-actions">
@@ -129,8 +162,8 @@ export default function Bins() {
             </div>
             {loading ? (
               <div className="muted">Loading bins...</div>
-            ) : rows.length ? (
-              rows.map((row) => (
+            ) : pagedRows.length ? (
+              pagedRows.map((row) => (
                 <button
                   type="button"
                   key={row.id}
@@ -147,6 +180,29 @@ export default function Bins() {
             ) : (
               <div className="muted">No bins found.</div>
             )}
+          </div>
+          <div className="table-toolbar">
+            <div className="pagination">
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page <= 1 || loading}
+              >
+                Prev
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages || loading}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
 
