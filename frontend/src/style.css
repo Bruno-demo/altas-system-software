@@ -1285,12 +1285,20 @@ input[type="radio"] {
 }
 
 select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid #d0d5dd;
   font-size: 14px;
   background: #ffffff;
   color: #101828;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 
@@ -1321,8 +1329,10 @@ select:hover:not(:disabled) {
 
 select[multiple] {
   min-height: 140px;
+  width: 100%;
   padding: 8px;
   background-image: none;
+  white-space: normal;
 }
 
 select:disabled {
@@ -1336,6 +1346,20 @@ input:not([type="checkbox"]):not([type="radio"]):focus,
 select:focus {
   outline: 2px solid #9db1ff;
   border-color: #9db1ff;
+}
+
+.field > select,
+.data-row select,
+.table-toolbar select,
+.filters-grid select,
+.filter-row select {
+  width: 100%;
+  min-width: 0;
+}
+
+.filter-row select {
+  flex: 1;
+  min-width: 220px;
 }
 
 button {
