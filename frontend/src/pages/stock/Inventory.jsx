@@ -134,7 +134,7 @@ export default function Inventory() {
             onChange={(e) => setQInput(e.target.value)}
           />
         </label>
-        <label className="field">
+        <label className="field inventory-filter-location">
           Location
           <select
             value={locationId}
@@ -151,7 +151,7 @@ export default function Inventory() {
             ))}
           </select>
         </label>
-        <label className="field">
+        <label className="field inventory-filter-bin">
           Bin
           <select value={binId} onChange={(e) => setBinId(e.target.value)}>
             <option value="">All</option>
@@ -162,7 +162,7 @@ export default function Inventory() {
             ))}
           </select>
         </label>
-        <div className="filter-actions">
+        <div className="filter-actions inventory-filter-actions">
           <button type="submit">Apply Filters</button>
         </div>
       </form>
