@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+.next/
+
+# Local environment files
+.env
+*.env.local
+backend/.env
+frontend/src/.env
+
+# Runtime/temp artifacts
+backend/logs/
+tmp/
+.smoke-runtime/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
