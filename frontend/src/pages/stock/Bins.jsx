@@ -27,7 +27,7 @@ export default function Bins() {
   const loadLocations = async () => {
     try {
       const res = await listLocations();
-      setLocations(res.data || []);
+      setLocations(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load locations.");
     }
@@ -42,7 +42,7 @@ export default function Bins() {
     setMessage("");
     try {
       const res = await listBins(locationId ? { locationId } : undefined);
-      setRows(res.data || []);
+      setRows(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load bins.");
     } finally {

@@ -24,7 +24,7 @@ export default function StockValuation() {
     const loadLocations = async () => {
       try {
         const res = await listLocations();
-        setLocations(res.data || []);
+        setLocations(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         setMessage(err?.response?.data?.message || "Failed to load locations.");
       }

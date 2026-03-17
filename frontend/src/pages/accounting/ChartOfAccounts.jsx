@@ -43,7 +43,7 @@ export default function ChartOfAccounts() {
         type: typeFilter || undefined,
         q: query.trim() || undefined,
       });
-      setRows(res.data || []);
+      setRows(Array.isArray(res.data) ? res.data : []);
       if (selected) {
         const fresh = (res.data || []).find((row) => row.id === selected.id);
         setSelected(fresh || null);

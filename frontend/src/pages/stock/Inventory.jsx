@@ -31,7 +31,7 @@ export default function Inventory() {
     const loadLocations = async () => {
       try {
         const res = await listLocations();
-        setLocations(res.data || []);
+        setLocations(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         setMessage(err?.response?.data?.message || "Failed to load locations.");
       }
@@ -43,7 +43,7 @@ export default function Inventory() {
     const loadBins = async () => {
       try {
         const res = await listBins(locationId ? { locationId } : undefined);
-        setBins(res.data || []);
+        setBins(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         setMessage(err?.response?.data?.message || "Failed to load bins.");
       }
@@ -60,7 +60,7 @@ export default function Inventory() {
         locationId: locationId || undefined,
         binId: binId || undefined,
       });
-      setRows(res.data || []);
+      setRows(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load inventory.");
     } finally {

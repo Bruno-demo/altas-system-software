@@ -35,7 +35,7 @@ export default function AuditViewer() {
         params.to = to;
       }
       const res = await getAudit(params);
-      setRows(res.data?.rows || []);
+      setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
       setMeta(res.data?.meta || null);
       if (selected && !res.data?.rows?.some((r) => r.id === selected.id)) {
         setSelected(null);

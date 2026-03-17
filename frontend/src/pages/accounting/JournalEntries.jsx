@@ -72,7 +72,7 @@ export default function JournalEntries() {
   const loadAccounts = async () => {
     try {
       const res = await listAccounts();
-      setAccounts(res.data || []);
+      setAccounts(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load accounts.");
     }
@@ -89,7 +89,7 @@ export default function JournalEntries() {
         source: sourceFilter || undefined,
         q: query.trim() || undefined,
       });
-      setRows(res.data?.rows || []);
+      setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
       setMeta(res.data?.meta || { total: 0, page: 1, pages: 1, limit });
       if (selected) {
         const fresh = (res.data?.rows || []).find((row) => row.id === selected.id);

@@ -100,7 +100,7 @@ export default function InvoiceList() {
     const loadLocations = async () => {
       try {
         const res = await listLocations();
-        setLocations(res.data || []);
+        setLocations(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         setMessage(err?.response?.data?.message || "Failed to load locations.");
       }
@@ -119,7 +119,7 @@ export default function InvoiceList() {
     }
     try {
       const res = await listInvoices(queryParams);
-      setRows(res.data?.rows || []);
+      setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
       setMeta(res.data?.meta || null);
       setRange(res.data?.range || null);
       if (

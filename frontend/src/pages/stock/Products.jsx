@@ -45,7 +45,7 @@ export default function Products() {
         category: category || undefined,
         brand: brand.trim() || undefined,
       });
-      setRows(res.data || []);
+      setRows(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load products.");
     } finally {

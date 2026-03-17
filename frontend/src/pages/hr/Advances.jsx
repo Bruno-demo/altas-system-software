@@ -80,7 +80,7 @@ export default function Advances() {
         params.to = to;
       }
       const res = await listAdvances(params);
-      setRows(res.data?.advances || []);
+      setRows(Array.isArray(res.data?.advances) ? res.data.advances : []);
       setMeta(res.data?.meta || null);
       if (
         selected &&

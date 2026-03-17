@@ -62,7 +62,7 @@ export default function GeneralLedger() {
         page,
         limit,
       });
-      setRows(res.data?.rows || []);
+      setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
       setMeta(res.data?.meta || { total: 0, page: 1, pages: 1, limit });
       setOpeningBalance(res.data?.openingBalance || 0);
       setTotals(res.data?.totals || { debit: 0, credit: 0 });

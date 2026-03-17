@@ -72,7 +72,7 @@ export default function Employees() {
         params.isActive = activeFilter === "true";
       }
       const res = await listEmployees(params);
-      setRows(res.data?.employees || []);
+      setRows(Array.isArray(res.data?.employees) ? res.data.employees : []);
       setMeta(res.data?.meta || null);
       if (
         selected &&

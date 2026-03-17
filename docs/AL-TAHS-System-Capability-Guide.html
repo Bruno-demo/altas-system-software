@@ -1,0 +1,443 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AL-TAHS System Capability and Role Guide</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #dbe2ef;
+      --brand: #0b1a33;
+      --accent: #0f4c81;
+      --ok: #0f766e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #eef2fb 0%, #f8f9fd 100%);
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 1080px;
+      margin: 28px auto;
+      padding: 0 18px 40px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, var(--brand), #102b57);
+      color: #fff;
+      border-radius: 16px;
+      padding: 26px 28px;
+      box-shadow: 0 12px 34px rgba(11, 26, 51, 0.22);
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      letter-spacing: 0.2px;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 820px;
+      color: #d8e6ff;
+    }
+
+    .stamp {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #bdd3ff;
+    }
+
+    section {
+      margin-top: 18px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 4px 16px rgba(2, 12, 27, 0.05);
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 20px;
+      color: var(--brand);
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: var(--accent);
+    }
+
+    .lead {
+      margin: 0 0 10px;
+      color: var(--muted);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .tile {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fbfdff;
+    }
+
+    ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+
+    li {
+      margin: 4px 0;
+      color: #1e293b;
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .step {
+      background: #f8fbff;
+      border: 1px solid #dbe9ff;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .step .num {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      text-align: center;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 22px;
+      margin-bottom: 6px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+      background: #fff;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #edf1f7;
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f5f8fe;
+      color: #0b254a;
+      font-weight: 700;
+    }
+
+    .role {
+      font-weight: 700;
+      color: var(--brand);
+      white-space: nowrap;
+    }
+
+    .roles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .role-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fcfdff;
+    }
+
+    .role-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .callout {
+      border-left: 4px solid var(--ok);
+      background: #f2fbf8;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: #0f3d3a;
+      font-size: 14px;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    @media (max-width: 980px) {
+      .grid-2,
+      .workflow,
+      .roles-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h1 {
+        font-size: 24px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .page {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      section,
+      .hero {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <h1>AL-TAHS System Capability and Role Guide</h1>
+      <p>
+        This page gives a practical overview of what the AL-TAHS platform does, who can do what,
+        and the operational responsibilities for each user role.
+      </p>
+      <div class="stamp">Manual reference page for onboarding and daily operations.</div>
+    </header>
+
+    <section>
+      <h2>1) What The System Is Capable Of</h2>
+      <p class="lead">
+        AL-TAHS is an integrated business operations platform for sales, stock, HR, reporting, and motorbike branch operations.
+      </p>
+      <div class="grid-2">
+        <article class="tile">
+          <h3>Sales and POS</h3>
+          <ul>
+            <li>Invoice creation, returns, EBM confirmation, shift open/close, and shift export.</li>
+            <li>POS search with branch/location-aware availability checks.</li>
+            <li>Sales tracking synchronized with reports and audit trail.</li>
+          </ul>
+        </article>
+        <article class="tile">
+          <h3>Stock and Inventory</h3>
+          <ul>
+            <li>Products, locations, bins, stock-in/out/damage, and adjustments.</li>
+            <li>Stock movement visibility and valuation for decision making.</li>
+            <li>Low stock and lifecycle visibility for management control.</li>
+          </ul>
+        </article>
+        <article class="tile">
+          <h3>HR Operations</h3>
+          <ul>
+            <li>Employee records, attendance, salary advances, and payroll runs.</li>
+            <li>Payroll generation, deduction handling, and bank export.</li>
+            <li>HR summaries for daily and monthly administration.</li>
+          </ul>
+        </article>
+        <article class="tile">
+          <h3>Management and Governance</h3>
+          <ul>
+            <li>Manager/CEO dashboards, KPIs, EBM pending, and audit viewer.</li>
+            <li>Expense management and financial summaries.</li>
+            <li>System user administration with role-based access control.</li>
+          </ul>
+        </article>
+        <article class="tile">
+          <h3>Motorbike and Branch Flow</h3>
+          <ul>
+            <li>Motorbike branch assignment and branch-level sales handling.</li>
+            <li>Promotion records, search/sort, and imported historical data continuity.</li>
+            <li>Salesperson workflow linked to branch reporting.</li>
+          </ul>
+        </article>
+        <article class="tile">
+          <h3>Data Integrity and Operations</h3>
+          <ul>
+            <li>Role-restricted actions to reduce accidental misuse.</li>
+            <li>Error logging for maintenance and troubleshooting.</li>
+            <li>Backup-first operations for business continuity.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>2) Core Business Workflow</h2>
+      <div class="workflow">
+        <div class="step">
+          <div class="num">1</div>
+          <strong>Prepare Data</strong>
+          <div class="small">Create users, locations, bins, products, and branch setup.</div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <strong>Operate Daily</strong>
+          <div class="small">Cashier sells, Store Keeper updates stock, HR runs people ops.</div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <strong>Control and Review</strong>
+          <div class="small">Manager/CEO monitor KPIs, EBM pending, expenses, and audit logs.</div>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <strong>Close and Report</strong>
+          <div class="small">Export shift/report data, verify reconciliations, and backup.</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>3) User Roles, Permissions, and Responsibilities</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Main Access</th>
+              <th>What They Can Do</th>
+              <th>Operational Responsibility</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="role">CEO</td>
+              <td>Full system control</td>
+              <td>All modules, user management, financial/stock/EBM oversight, strategic reports.</td>
+              <td>Approvals, governance, final accountability for policy and performance.</td>
+            </tr>
+            <tr>
+              <td class="role">MANAGER</td>
+              <td>Operations and analytics</td>
+              <td>Reports, audit, EBM dashboard actions, expenses, read HR + many operational modules.</td>
+              <td>Daily supervision, compliance follow-up, and department coordination.</td>
+            </tr>
+            <tr>
+              <td class="role">HR</td>
+              <td>People operations</td>
+              <td>Create/update employees, mark attendance, manage advances, generate/finalize payroll.</td>
+              <td>Personnel data accuracy, payroll correctness, attendance discipline.</td>
+            </tr>
+            <tr>
+              <td class="role">CASHIER</td>
+              <td>Point-of-sale</td>
+              <td>Create sales, manage shifts, handle returns, confirm EBM, print/export invoices.</td>
+              <td>Correct invoicing, cash/transaction integrity, end-of-shift closure.</td>
+            </tr>
+            <tr>
+              <td class="role">STORE_KEEPER</td>
+              <td>Inventory operations</td>
+              <td>Manage products, bins, stock-in/out/damage/adjustments, and location-level stock control.</td>
+              <td>Stock accuracy, bin discipline, and replenishment readiness.</td>
+            </tr>
+            <tr>
+              <td class="role">SALESPERSON</td>
+              <td>Motorbike and branch sales flow</td>
+              <td>Motorbike records, branch-linked flow, promotion/sales sync, sales visibility.</td>
+              <td>Branch sales traceability and motorbike data consistency.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>4) Role-by-Role Practical Guide</h2>
+      <div class="roles-grid">
+        <article class="role-card">
+          <h3>CEO</h3>
+          <p>Review overall dashboard health daily, validate high-risk actions, and enforce data discipline across teams.</p>
+        </article>
+        <article class="role-card">
+          <h3>Manager</h3>
+          <p>Track KPIs, pending EBM records, audit anomalies, and expense behavior; coordinate fixes immediately.</p>
+        </article>
+        <article class="role-card">
+          <h3>HR</h3>
+          <p>Keep employee master data current, mark attendance on time, and complete payroll with verified deductions.</p>
+        </article>
+        <article class="role-card">
+          <h3>Cashier</h3>
+          <p>Open shift, process sales accurately, confirm EBM, and close shift with reconciled outputs and receipts.</p>
+        </article>
+        <article class="role-card">
+          <h3>Store Keeper</h3>
+          <p>Ensure every movement has a valid location/bin context, and maintain stock correctness for all sellable items.</p>
+        </article>
+        <article class="role-card">
+          <h3>Salesperson</h3>
+          <p>Manage branch motorbike lifecycle, update sold status from reports, and keep promotion/sales data synchronized.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>5) Usage Rules To Keep Data Clean</h2>
+      <ul>
+        <li>Never share accounts; each user must log in with their own role.</li>
+        <li>Cashier must close shift daily and confirm EBM status for completed transactions.</li>
+        <li>Store operations must always map stock to valid location/bin where required.</li>
+        <li>HR payroll should be finalized only after attendance and advances are reviewed.</li>
+        <li>Manager/CEO must review audit and pending dashboards at least once per day.</li>
+      </ul>
+      <div class="callout">
+        Recommended daily routine: verify service health, process operations by role, close the day with reports,
+        and ensure automated backups complete successfully.
+      </div>
+    </section>
+
+    <section>
+      <h2>6) Quick Start For New Staff</h2>
+      <ol>
+        <li>Login with assigned role account and change password on first login.</li>
+        <li>Open only the menu items relevant to your role and follow role-specific process.</li>
+        <li>Complete records before moving to next step (sale, stock entry, attendance, payroll action, etc.).</li>
+        <li>If access is denied or data looks wrong, report to Manager/CEO instead of bypassing workflow.</li>
+      </ol>
+      <p class="small">
+        Document owner: ____________________  |  Last review date: ____________________  |  Version: ____________________
+      </p>
+    </section>
+  </main>
+</body>
+</html>

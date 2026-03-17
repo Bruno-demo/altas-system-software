@@ -77,7 +77,7 @@ export default function Motorbikes() {
         brand: brand.trim() || undefined,
         category: "Motorbike",
       });
-      setRows(res.data || []);
+      setRows(Array.isArray(res.data) ? res.data : []);
       if (selected) {
         const refreshedSelection = (res.data || []).find((row) => row.id === selected.id);
         setSelected(refreshedSelection || null);

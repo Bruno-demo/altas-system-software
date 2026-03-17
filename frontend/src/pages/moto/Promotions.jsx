@@ -93,7 +93,7 @@ export default function Promotions() {
         to: to || undefined,
       };
       const res = await listPromotions(params);
-      setRows(res.data?.rows || []);
+      setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
       setMeta(res.data?.meta || null);
       if (selected && !(res.data?.rows || []).some((row) => row.id === selected.id)) {
         setSelected(null);

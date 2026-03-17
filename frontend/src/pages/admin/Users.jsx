@@ -70,7 +70,7 @@ export default function Users() {
         params.isActive = statusFilter === "true";
       }
       const res = await listUsers(params);
-      setRows(res.data?.rows || []);
+      setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
       setMeta(res.data?.meta || null);
       if (selected && !(res.data?.rows || []).some((row) => row.id === selected.id)) {
         setSelected(null);

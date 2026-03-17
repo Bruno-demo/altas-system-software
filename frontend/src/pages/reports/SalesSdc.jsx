@@ -65,7 +65,7 @@ export default function SalesSdc() {
       }
 
       const res = await getSalesSdc(params);
-      setRows(res.data?.rows || []);
+      setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
       setMeta(res.data?.meta || null);
       setRange(res.data?.range || null);
     } catch (err) {

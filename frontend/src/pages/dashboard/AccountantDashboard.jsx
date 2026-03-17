@@ -255,7 +255,7 @@ export default function AccountantDashboard() {
       <div className="split-view">
         <section className="card list-panel">
           <h3>Sales by Payment</h3>
-          {paymentSplit?.byPayment?.length ? (
+          {Array.isArray(paymentSplit?.byPayment) && paymentSplit.byPayment.length ? (
             <div className="table-compact">
               {paymentSplit.byPayment.map((row) => (
                 <div key={row.paymentMethod} className="table-row">
@@ -272,7 +272,7 @@ export default function AccountantDashboard() {
 
         <section className="card preview-panel">
           <h3>EBM Summary</h3>
-          {ebmSummary?.byStatus?.length ? (
+          {Array.isArray(ebmSummary?.byStatus) && ebmSummary.byStatus.length ? (
             <div className="table-compact">
               {ebmSummary.byStatus.map((row) => (
                 <div key={row.ebmStatus} className="table-row">

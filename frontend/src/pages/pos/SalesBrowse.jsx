@@ -80,7 +80,7 @@ export default function SalesBrowse() {
       setMessage("");
       try {
         const res = await listInvoices(params);
-        setRows(res.data?.rows || []);
+        setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
         setMeta(res.data?.meta || null);
         setRange(res.data?.range || null);
       } catch (err) {

@@ -30,7 +30,7 @@ export default function TrialBalance() {
     setMessage("");
     try {
       const res = await getTrialBalance(rangeParams);
-      setRows(res.data?.rows || []);
+      setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
       setTotals(res.data?.totals || { debit: 0, credit: 0 });
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load trial balance.");

@@ -19,7 +19,7 @@ export default function LowStock() {
     const loadLocations = async () => {
       try {
         const res = await listLocations();
-        setLocations(res.data || []);
+        setLocations(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         setMessage(err?.response?.data?.message || "Failed to load locations.");
       }
@@ -35,7 +35,7 @@ export default function LowStock() {
         locationId: locationId || undefined,
         aggregate: aggregate ? "true" : undefined,
       });
-      setRows(res.data?.items || []);
+      setRows(Array.isArray(res.data?.items) ? res.data.items : []);
       setMode(res.data?.mode || "PER_LOCATION");
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load low stock.");

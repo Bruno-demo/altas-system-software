@@ -341,7 +341,7 @@ export default function CashierDashboard() {
                 <div className="stat-label">Total</div>
                 <div className="stat-value">{report.total}</div>
               </div>
-              {Object.entries(report.byPayment || {}).map(([key, value]) => (
+              {Object.entries(typeof report.byPayment === 'object' && report.byPayment !== null ? report.byPayment : {}).map(([key, value]) => (
                 <div key={key}>
                   <div className="stat-label">{key}</div>
                   <div className="stat-value">{value}</div>
