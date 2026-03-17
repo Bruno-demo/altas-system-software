@@ -880,6 +880,35 @@ button.data-button:hover {
   grid-template-columns: 110px 120px minmax(0, 1.2fr) 160px minmax(0, 1fr);
 }
 
+.data-row.account-row {
+  grid-template-columns: 90px minmax(0, 1.6fr) 120px 140px 80px 100px;
+}
+
+.data-row.journal-row {
+  grid-template-columns: 120px 110px 160px minmax(0, 1.6fr) 120px 120px;
+}
+
+.data-row.ledger-row {
+  grid-template-columns: 120px 110px 160px minmax(0, 1.4fr) 110px 110px 120px;
+}
+
+.data-row.trial-row {
+  grid-template-columns: 90px minmax(0, 1.6fr) 120px 140px 140px;
+}
+
+.data-row.account-row > :nth-child(5),
+.data-row.account-row > :nth-child(6),
+.data-row.journal-row > :nth-child(5),
+.data-row.journal-row > :nth-child(6),
+.data-row.ledger-row > :nth-child(5),
+.data-row.ledger-row > :nth-child(6),
+.data-row.ledger-row > :nth-child(7),
+.data-row.trial-row > :nth-child(4),
+.data-row.trial-row > :nth-child(5) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .branches-page .split-view {
   display: flex;
   flex-direction: column;
@@ -1746,6 +1775,10 @@ button:disabled {
   .data-row.branch-row,
   .data-row.branch-bike-row,
   .data-row.branch-sale-row,
+  .data-row.account-row,
+  .data-row.journal-row,
+  .data-row.ledger-row,
+  .data-row.trial-row,
   .data-row.employee-row,
   .data-row.attendance-row,
   .data-row.attendance-mark-row,

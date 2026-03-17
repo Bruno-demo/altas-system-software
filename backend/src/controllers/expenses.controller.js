@@ -2,6 +2,7 @@
 const prisma = require("../prisma");
 const { createWorkbook } = require("../utils/safeExcel");
 const { handleError } = require("../utils/errors");
+const { autoPostExpense, reverseJournalEntry } = require("../utils/accounting");
 
 function s(v) {
   if (v == null) return null;
@@ -180,6 +181,9 @@ exports.createExpense = async (req, res) => {
         },
       });
 
+      // What this does: auto-post expense to the accounting journal
+      await autoPostExpense(tx, exp);
+
       return exp;
     });
 
@@ -230,6 +234,24 @@ exports.updateExpense = async (req, res) => {
         data,
       });
 
+      // What this does: reverse previous journal entry and re-post updated expense
+      const latestEntry = await tx.journalEntry.findFirst({
+        where: { source: "EXPENSE", sourceId: id },
+        orderBy: { createdAt: "desc" },
+        include: { lines: true },
+      });
+
+      if (latestEntry) {
+        await reverseJournalEntry(tx, latestEntry, {
+          memo: `Reversal of expense ${id} (update)`,
+          createdById: req.user.id,
+          source: "OTHER",
+          sourceId: null,
+        });
+      }
+
+      await autoPostExpense(tx, u);
+
       await tx.auditLog.create({
         data: {
           userId: req.user.id,
@@ -270,6 +292,22 @@ exports.softDeleteExpense = async (req, res) => {
           deletedById: req.user.id,
         },
       });
+
+      // What this does: reverse latest accounting entry for this expense
+      const latestEntry = await tx.journalEntry.findFirst({
+        where: { source: "EXPENSE", sourceId: id },
+        orderBy: { createdAt: "desc" },
+        include: { lines: true },
+      });
+
+      if (latestEntry) {
+        await reverseJournalEntry(tx, latestEntry, {
+          memo: `Reversal of expense ${id} (delete)`,
+          createdById: req.user.id,
+          source: "OTHER",
+          sourceId: null,
+        });
+      }
 
       await tx.auditLog.create({
         data: {

@@ -97,6 +97,18 @@ export default function AccountantDashboard() {
           </p>
         </div>
         <div className="button-row">
+          <Link className="button-outline" to="/accounting/accounts">
+            Chart of Accounts
+          </Link>
+          <Link className="button-outline" to="/accounting/journals">
+            Journal Entries
+          </Link>
+          <Link className="button-outline" to="/accounting/trial-balance">
+            Trial Balance
+          </Link>
+          <Link className="button-outline" to="/accounting/statements">
+            Financial Statements
+          </Link>
           <Link className="button-outline" to="/reports/expenses">
             Expenses
           </Link>

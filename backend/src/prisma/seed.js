@@ -1,6 +1,7 @@
 // What this does: wipes existing data and seeds a large demo dataset for full-system testing.
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcrypt");
+const { DEFAULT_ACCOUNTS } = require("../utils/accounting");
 
 const prisma = new PrismaClient();
 
@@ -82,6 +83,9 @@ function sumBy(items, selector) {
 
 async function wipeDatabase() {
   // What this does: clears data in FK-safe order so seed is always clean and deterministic.
+  await prisma.journalLine.deleteMany();
+  await prisma.journalEntry.deleteMany();
+  await prisma.account.deleteMany();
   await prisma.saleReturnItem.deleteMany();
   await prisma.saleReturn.deleteMany();
   await prisma.saleItem.deleteMany();
@@ -158,6 +162,21 @@ async function main() {
   }));
 
   await createManyInChunks(prisma.user, usersToCreate, 200);
+
+  // ===== Chart of Accounts =====
+  await createManyInChunks(
+    prisma.account,
+    DEFAULT_ACCOUNTS.map((acc) => ({
+      code: acc.code,
+      name: acc.name,
+      type: acc.type,
+      category: acc.category || null,
+      isCash: Boolean(acc.isCash),
+      isActive: true,
+      createdAt: daysAgoUtc(700, 7),
+    })),
+    200
+  );
 
   const allUsers = await prisma.user.findMany({ orderBy: { email: "asc" } });
   const usersByRole = roles.reduce((acc, role) => ({ ...acc, [role]: [] }), {});

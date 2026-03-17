@@ -1,6 +1,7 @@
 // What this does: creates an invoice sale and deducts stock from the exact bin(s)
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
+const { autoPostSale } = require("../utils/accounting");
 
 // What this does: finds the latest numeric invoice suffix for a given prefix.
 async function getLastInvoiceNumberForPrefix(tx, prefix) {
@@ -216,6 +217,8 @@ exports.createSale = async (req, res) => {
           lineTotal: String(lineNet),
           productName: product.name,
           binCode,
+          product,
+          costPrice: Number(product.costPrice || 0),
         });
       }
 
@@ -294,6 +297,9 @@ exports.createSale = async (req, res) => {
           },
         });
       }
+
+      // 4.5) Auto-post to accounting journal (cash/revenue + COGS)
+      await autoPostSale(tx, sale, preparedItems);
 
       // 5) Audit log
       await tx.auditLog.create({

@@ -1,6 +1,7 @@
 // What this does: creates a return, restocks inventory to the specified bin(s), and logs stock IN
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
+const { autoPostReturn } = require("../utils/accounting");
 
 exports.createReturn = async (req, res) => {
   try {
@@ -25,7 +26,7 @@ exports.createReturn = async (req, res) => {
               binId: true,
               quantity: true,
               unitPrice: true,
-              product: { select: { name: true, category: true, chassisNumber: true } },
+              product: { select: { name: true, category: true, chassisNumber: true, costPrice: true } },
             },
           },
         },
@@ -143,6 +144,9 @@ exports.createReturn = async (req, res) => {
           binId: finalBinId,
           quantity,
           isMotorbike,
+          unitPrice: Number(saleItem.unitPrice || 0),
+          costPrice: Number(saleItem.product?.costPrice || 0),
+          product: saleItem.product || null,
         });
       }
 
@@ -251,6 +255,12 @@ exports.createReturn = async (req, res) => {
 
         await tx.salesSdcRow.createMany({ data: sdcRows });
       }
+
+      await autoPostReturn(tx, {
+        sale,
+        returnRecord: ret,
+        items: preparedItems,
+      });
 
       await tx.auditLog.create({
         data: {

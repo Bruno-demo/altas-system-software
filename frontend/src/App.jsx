@@ -38,6 +38,11 @@ import Users from "./pages/admin/Users";
 import Motorbikes from "./pages/moto/Motorbikes";
 import Promotions from "./pages/moto/Promotions";
 import Branches from "./pages/moto/Branches";
+import ChartOfAccounts from "./pages/accounting/ChartOfAccounts";
+import JournalEntries from "./pages/accounting/JournalEntries";
+import GeneralLedger from "./pages/accounting/GeneralLedger";
+import TrialBalance from "./pages/accounting/TrialBalance";
+import FinancialStatements from "./pages/accounting/FinancialStatements";
 import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
 
@@ -316,6 +321,56 @@ export default function App() {
           <ProtectedRoute roles={["ACCOUNTANT", "MANAGER", "CEO"]}>
             <AppLayout>
               <AccountantDashboard />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounting/accounts"
+        element={
+          <ProtectedRoute roles={["ACCOUNTANT", "MANAGER", "CEO"]}>
+            <AppLayout>
+              <ChartOfAccounts />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounting/journals"
+        element={
+          <ProtectedRoute roles={["ACCOUNTANT", "MANAGER", "CEO"]}>
+            <AppLayout>
+              <JournalEntries />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounting/ledger"
+        element={
+          <ProtectedRoute roles={["ACCOUNTANT", "MANAGER", "CEO"]}>
+            <AppLayout>
+              <GeneralLedger />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounting/trial-balance"
+        element={
+          <ProtectedRoute roles={["ACCOUNTANT", "MANAGER", "CEO"]}>
+            <AppLayout>
+              <TrialBalance />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounting/statements"
+        element={
+          <ProtectedRoute roles={["ACCOUNTANT", "MANAGER", "CEO"]}>
+            <AppLayout>
+              <FinancialStatements />
             </AppLayout>
           </ProtectedRoute>
         }

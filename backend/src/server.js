@@ -30,6 +30,8 @@ const authExtraRoutes = require("./routes/auth.extra.routes");
 const salesListRoutes = require("./routes/sales.list.routes");
 // What this does: registers motorbike promotions endpoints
 const motorbikeRoutes = require("./routes/motorbike.routes");
+// What this does: registers accounting endpoints (COA, journals, statements)
+const accountingRoutes = require("./routes/accounting.routes");
 const {
   cleanupOldErrorLogs,
   getErrorLogDirectory,
@@ -81,6 +83,7 @@ app.use("/api/sales", salesListRoutes);
 app.use("/api/manager", managerRoutes);
 app.use("/api/admin", adminUsersRoutes);
 app.use("/api/motorbikes", motorbikeRoutes);
+app.use("/api/accounting", accountingRoutes);
 
 const frontendDist = path.resolve(__dirname, "../../frontend/dist");
 if (fs.existsSync(frontendDist)) {

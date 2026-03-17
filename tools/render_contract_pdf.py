@@ -130,9 +130,16 @@ def build_pdf(pdf_path: Path) -> None:
     terms_table = Table(
         [
             [p("Total System Cost", body), p("<b>RWF 2,000,000</b> (Two Million Rwandan Francs only).", body)],
-            [p("Payment Method", body), p("<b>Full one-time payment only.</b>", body)],
+            [
+                p("Payment Method", body),
+                p(
+                    "<b>Full one-time payment only</b> via Bank (BK).<br/>"
+                    + f"Bank Name: {DOT_MED}   Account Number: {DOT_MED}   Account Holder: {DOT_MED}",
+                    body,
+                ),
+            ],
             [p("Installments", body), p("<b>Not accepted.</b>", body)],
-            [p("Payment Due Date", body), p(DOT_LONG, body)],
+            [p("Payment Due Date", body), p("<b>Within five (5) calendar days from the Agreement signing date.</b>", body)],
             [
                 p("Hosting &amp; Infrastructure Fees", body),
                 p(
@@ -191,6 +198,7 @@ def build_pdf(pdf_path: Path) -> None:
                 ListItem(p("Major new features outside current scope require a separate written agreement.", bullet)),
                 ListItem(p("The Client shall provide required access, responsible users, and infrastructure cooperation.", bullet)),
                 ListItem(p("The Client pays all hosting and operational infrastructure charges from go-live onward.", bullet)),
+                ListItem(p("Payment is due in full within five (5) calendar days after the signing date.", bullet)),
                 ListItem(p("This Agreement becomes effective upon signature by both parties.", bullet)),
             ],
             bulletType="bullet",

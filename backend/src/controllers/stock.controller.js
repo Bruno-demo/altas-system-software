@@ -1,6 +1,7 @@
 // What this does: applies stock IN/OUT/DAMAGE transactions and updates Inventory safely
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
+const { autoPostStockAdjustment } = require("../utils/accounting");
 
 // -------------------------------
 // Helper: get or create inventory row
@@ -73,6 +74,8 @@ exports.stockIn = async (req, res) => {
           reason: bin ? `BIN:${bin.code}` : null, // quick trace of bin in transaction
         },
       });
+
+      await autoPostStockAdjustment(tx, trx, product);
 
       await tx.auditLog.create({
         data: {
@@ -161,6 +164,8 @@ exports.stockOut = async (req, res) => {
         },
       });
 
+      await autoPostStockAdjustment(tx, trx, product);
+
       await tx.auditLog.create({
         data: {
           userId: req.user.id,
@@ -246,6 +251,8 @@ exports.stockDamage = async (req, res) => {
           createdBy: req.user.id,
         },
       });
+
+      await autoPostStockAdjustment(tx, trx, product);
 
       await tx.auditLog.create({
         data: {

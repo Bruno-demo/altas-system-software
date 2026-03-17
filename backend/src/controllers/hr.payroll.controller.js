@@ -3,6 +3,7 @@
 const { createWorkbook } = require("../utils/safeExcel");
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
+const { autoPostPayroll } = require("../utils/accounting");
 
 // What this does: validates year/month query params
 function parseYearMonth(q) {
@@ -406,6 +407,8 @@ exports.finalizePayroll = async (req, res) => {
         where: { id: runId },
         data: { status: "FINAL" },
       });
+
+      await autoPostPayroll(tx, u, { createdById: req.user.id });
 
       await tx.auditLog.create({
         data: {
