@@ -42,9 +42,10 @@ export default function GeneralLedger() {
   const loadAccounts = async () => {
     try {
       const res = await listAccounts();
-      setAccounts(res.data || []);
-      if (!accountId && res.data?.length) {
-        setAccountId(res.data[0].id);
+      const accountsData = Array.isArray(res.data) ? res.data : [];
+      setAccounts(accountsData);
+      if (!accountId && accountsData.length) {
+        setAccountId(accountsData[0].id);
       }
     } catch (err) {
       setMessage(err?.response?.data?.message || "Failed to load accounts.");
