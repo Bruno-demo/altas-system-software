@@ -17,6 +17,7 @@ export default function Login() {
     if (role === "CASHIER") return nav("/cashier");
     if (role === "STORE_KEEPER") return nav("/storekeeper");
     if (role === "MANAGER") return nav("/manager");
+    if (role === "ACCOUNTANT") return nav("/accountant");
     if (role === "HR") return nav("/hr");
     if (role === "CEO") return nav("/ceo");
     if (role === "SALESPERSON") return nav("/motorbikes");

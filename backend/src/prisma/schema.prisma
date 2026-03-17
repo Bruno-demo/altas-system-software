@@ -14,6 +14,7 @@ enum Role {
   CASHIER
   SALESPERSON
   MANAGER
+  ACCOUNTANT
   HR
   CEO
 }

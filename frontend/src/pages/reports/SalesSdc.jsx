@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "../../auth/AuthContext";
 import { getSalesSdc, importSalesSdc } from "../../api/reports";
 
 const periods = [
@@ -17,6 +18,10 @@ function money(value) {
 }
 
 export default function SalesSdc() {
+  const { user } = useAuth();
+  const canImport = ["CASHIER", "SALESPERSON", "MANAGER", "CEO"].includes(
+    String(user?.role || "").toUpperCase()
+  );
   const [period, setPeriod] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -294,36 +299,40 @@ export default function SalesSdc() {
                 : "Filters drive this view."}
             </div>
           </div>
-          <div className="divider" />
-          <div className="stack">
-            <div>
-              <h4>Import SDC Sheet</h4>
-              <div className="muted">
-                Upload an Excel (.xlsx) file with headers:
-                SDC ID, Buyer TIN, Buyer Name, Sale date, Receipt type, Item name,
-                Quantity, Unit price, Taxable Supply Price, VAT, Summary Amount.
+          {canImport ? (
+            <>
+              <div className="divider" />
+              <div className="stack">
+                <div>
+                  <h4>Import SDC Sheet</h4>
+                  <div className="muted">
+                    Upload an Excel (.xlsx) file with headers:
+                    SDC ID, Buyer TIN, Buyer Name, Sale date, Receipt type, Item name,
+                    Quantity, Unit price, Taxable Supply Price, VAT, Summary Amount.
+                  </div>
+                </div>
+                {importSummary ? (
+                  <div className="muted">
+                    Last import: {importSummary.inserted} inserted, {importSummary.updated} updated rows.
+                  </div>
+                ) : null}
+                <div className="form form-wide">
+                  <label className="field">
+                    Excel file (.xlsx)
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept=".xlsx"
+                      onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                  <button type="button" onClick={handleImport} disabled={importing}>
+                    {importing ? "Importing..." : "Upload & Import"}
+                  </button>
+                </div>
               </div>
-            </div>
-            {importSummary ? (
-              <div className="muted">
-                Last import: {importSummary.inserted} inserted, {importSummary.updated} updated rows.
-              </div>
-            ) : null}
-            <div className="form form-wide">
-              <label className="field">
-                Excel file (.xlsx)
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".xlsx"
-                  onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                />
-              </label>
-              <button type="button" onClick={handleImport} disabled={importing}>
-                {importing ? "Importing..." : "Upload & Import"}
-              </button>
-            </div>
-          </div>
+            </>
+          ) : null}
         </section>
       </div>
     </div>

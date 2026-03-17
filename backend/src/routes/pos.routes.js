@@ -20,16 +20,31 @@ const {
 
 
 
-// ✅ Export shift report Excel (Cashier + Manager + CEO)
-router.get("/shift/:shiftId/export/excel", auth, allowRoles("CASHIER", "MANAGER", "CEO"), exportShiftExcel);
+// ✅ Export shift report Excel (Cashier + Manager + CEO + Accountant)
+router.get(
+  "/shift/:shiftId/export/excel",
+  auth,
+  allowRoles("CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  exportShiftExcel
+);
 // Cashier / Manager / CEO can create sales
 router.post("/sales", auth, allowRoles("CASHIER", "MANAGER", "CEO"), createSale);
 
-// Manager / CEO can view all sales, Cashier and Salesperson can view accessible ones
-router.get("/sales", auth, allowRoles("SALESPERSON", "CASHIER", "MANAGER", "CEO"), listSales);
+// Manager / CEO can view all sales, Cashier/Salesperson can view accessible ones, Accountant read-only
+router.get(
+  "/sales",
+  auth,
+  allowRoles("SALESPERSON", "CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  listSales
+);
 
-// Cashier can view a specific sale (their own); Manager/CEO can view all
-router.get("/sales/:id", auth, allowRoles("SALESPERSON", "CASHIER", "MANAGER", "CEO"), getSaleById);
+// Cashier can view a specific sale (their own); Manager/CEO can view all; Accountant read-only
+router.get(
+  "/sales/:id",
+  auth,
+  allowRoles("SALESPERSON", "CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  getSaleById
+);
 // ✅ Product search (Cashier + Manager + CEO)
 router.get("/products/search", auth, allowRoles("CASHIER", "MANAGER", "CEO"), searchProducts);
 router.get(
@@ -48,12 +63,27 @@ router.put(
 router.post("/shift/open", auth, allowRoles("CASHIER"), openShift);
 router.get("/shift/open", auth, allowRoles("CASHIER"), getMyOpenShift);
 router.post("/shift/close", auth, allowRoles("CASHIER"), closeShift);
-router.get("/sales/:id/invoice.json", auth, allowRoles("CASHIER", "MANAGER", "CEO"), getInvoiceJson);
-router.get("/sales/:id/invoice.pdf", auth, allowRoles("CASHIER", "MANAGER", "CEO"), getInvoicePdf);
+router.get(
+  "/sales/:id/invoice.json",
+  auth,
+  allowRoles("CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  getInvoiceJson
+);
+router.get(
+  "/sales/:id/invoice.pdf",
+  auth,
+  allowRoles("CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  getInvoicePdf
+);
 router.post("/sales/:id/return", auth, allowRoles("CASHIER", "MANAGER", "CEO"), createReturn);
-router.get("/sales/:id/ebm-input", auth, allowRoles("CASHIER", "MANAGER", "CEO"), getEbmInput);
+router.get(
+  "/sales/:id/ebm-input",
+  auth,
+  allowRoles("CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  getEbmInput
+);
 router.post("/sales/:id/ebm-confirm", auth, allowRoles("CASHIER", "MANAGER", "CEO"), confirmEbm);
-router.get("/reports/daily", auth, allowRoles("CASHIER", "MANAGER", "CEO"), dailyReport);
+router.get("/reports/daily", auth, allowRoles("CASHIER", "MANAGER", "ACCOUNTANT", "CEO"), dailyReport);
 
 
 

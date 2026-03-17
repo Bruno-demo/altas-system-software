@@ -1,5 +1,6 @@
 // What this does: lists invoices with filters, preview, and POS actions
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../auth/AuthContext";
 import { fetchReceiptHtml, getInvoice, listInvoices } from "../../api/sales";
 import { listLocations } from "../../api/inventory";
 import {
@@ -35,6 +36,10 @@ function parseQty(value) {
 }
 
 export default function InvoiceList() {
+  const { user } = useAuth();
+  const role = String(user?.role || "").toUpperCase();
+  const canConfirmEbm = ["CASHIER", "MANAGER", "CEO"].includes(role);
+  const canReturn = ["CASHIER", "MANAGER", "CEO"].includes(role);
   const [period, setPeriod] = useState("today");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -220,6 +225,10 @@ export default function InvoiceList() {
 
   const handleEbmConfirm = async () => {
     if (!sale) return;
+    if (!canConfirmEbm) {
+      setMessage("Only Cashier, Manager, or CEO can confirm EBM.");
+      return;
+    }
     setMessage("");
     setSuccess("");
     if (!ebmInvoiceNo.trim()) {
@@ -247,6 +256,10 @@ export default function InvoiceList() {
 
   const openReturn = () => {
     if (!sale) return;
+    if (!canReturn) {
+      setMessage("Only Cashier, Manager, or CEO can create returns.");
+      return;
+    }
     setReturnReason("");
     setReturnItems(
       (sale.items || []).map((it) => ({
@@ -571,19 +584,23 @@ export default function InvoiceList() {
                 <button type="button" className="button-outline" onClick={handleEbmInput}>
                   EBM Input
                 </button>
-                <button
-                  type="button"
-                  className="button-outline"
-                  onClick={() => {
-                    setEbmInvoiceNo(sale?.ebmInvoiceNo || "");
-                    setShowEbmConfirm(true);
-                  }}
-                >
-                  Confirm EBM
-                </button>
-                <button type="button" className="button-outline" onClick={openReturn}>
-                  Create Return
-                </button>
+                {canConfirmEbm ? (
+                  <button
+                    type="button"
+                    className="button-outline"
+                    onClick={() => {
+                      setEbmInvoiceNo(sale?.ebmInvoiceNo || "");
+                      setShowEbmConfirm(true);
+                    }}
+                  >
+                    Confirm EBM
+                  </button>
+                ) : null}
+                {canReturn ? (
+                  <button type="button" className="button-outline" onClick={openReturn}>
+                    Create Return
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : (

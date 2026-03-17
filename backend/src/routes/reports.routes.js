@@ -26,29 +26,39 @@ const {
   markEbmPending,
 } = require("../controllers/reports.manager.controller");
 
-// Manager + CEO only
-router.get("/summary", auth, allowRoles("MANAGER", "CEO"), summary);
-router.get("/sales-by-payment", auth, allowRoles("MANAGER", "CEO"), salesByPayment);
-router.get("/best-sellers", auth, allowRoles("MANAGER", "CEO"), bestSellers);
-router.get("/sales-sdc", auth, allowRoles("SALESPERSON", "MANAGER", "CEO"), salesSdcList);
-router.get("/sales-sdc/imported", auth, allowRoles("CASHIER", "SALESPERSON", "MANAGER", "CEO"), listImportedSalesSdc);
+// Manager + Accountant + CEO
+router.get("/summary", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), summary);
+router.get("/sales-by-payment", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), salesByPayment);
+router.get("/best-sellers", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), bestSellers);
+router.get("/sales-sdc", auth, allowRoles("SALESPERSON", "ACCOUNTANT", "MANAGER", "CEO"), salesSdcList);
+router.get(
+  "/sales-sdc/imported",
+  auth,
+  allowRoles("CASHIER", "SALESPERSON", "ACCOUNTANT", "MANAGER", "CEO"),
+  listImportedSalesSdc
+);
 router.post("/sales-sdc/import", auth, allowRoles("CASHIER", "SALESPERSON", "MANAGER", "CEO"), importSalesSdc);
 router.post("/sales-sdc/backfill", auth, allowRoles("MANAGER", "CEO"), backfillSalesSdc);
-router.get("/stock-movement", auth, allowRoles("MANAGER", "CEO"), stockMovement);
-router.get("/cashflow", auth, allowRoles("MANAGER", "CEO"), cashflow);
+router.get("/stock-movement", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), stockMovement);
+router.get("/cashflow", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), cashflow);
 
 // ✅ NEW: Profit report (Revenue - COGS)
-router.get("/profit", auth, allowRoles("MANAGER", "CEO"), profit);
+router.get("/profit", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), profit);
 
 // Activity access
-router.get("/audit", auth, allowRoles("MANAGER", "CEO"), auditLogs);
-router.get("/stock-transactions", auth, allowRoles("MANAGER", "CEO"), stockTransactions);
+router.get("/audit", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), auditLogs);
+router.get("/stock-transactions", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), stockTransactions);
 // What this does: exports manager reports to Excel (xlsx)
-router.get("/export/excel", auth, allowRoles("MANAGER", "CEO"), exportExcel);
+router.get("/export/excel", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), exportExcel);
 // What this does: EBM dashboard endpoints (Manager/CEO)
-router.get("/ebm/summary", auth, allowRoles("MANAGER", "CEO"), ebmSummary);
-router.get("/ebm/pending", auth, allowRoles("MANAGER", "CEO"), ebmPending);
-router.get("/ebm/pending-by-cashier", auth, allowRoles("MANAGER", "CEO"), pendingByCashier);
+router.get("/ebm/summary", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), ebmSummary);
+router.get("/ebm/pending", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), ebmPending);
+router.get(
+  "/ebm/pending-by-cashier",
+  auth,
+  allowRoles("MANAGER", "ACCOUNTANT", "CEO"),
+  pendingByCashier
+);
 router.post("/ebm/:saleId/mark-failed", auth, allowRoles("MANAGER", "CEO"), markEbmFailed);
 router.post("/ebm/:saleId/mark-pending", auth, allowRoles("MANAGER", "CEO"), markEbmPending);
 

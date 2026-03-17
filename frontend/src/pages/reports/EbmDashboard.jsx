@@ -7,6 +7,7 @@ import {
   markEbmFailed,
   markEbmPending,
 } from "../../api/reports";
+import { useAuth } from "../../auth/AuthContext";
 import Modal from "../../components/Modal";
 
 const periods = [
@@ -24,6 +25,10 @@ function money(n) {
 }
 
 export default function EbmDashboard() {
+  const { user } = useAuth();
+  const canUpdateStatus = ["MANAGER", "CEO"].includes(
+    String(user?.role || "").toUpperCase()
+  );
   const [period, setPeriod] = useState("this_week");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -246,30 +251,39 @@ export default function EbmDashboard() {
           ) : null}
         </section>
 
-        <section className="card">
-          <h3>Reopen Failed Invoice</h3>
-          <div className="form">
-            <div className="field">
-              <label>Sale ID</label>
-              <input
-                value={manualSaleId}
-                onChange={(e) => setManualSaleId(e.target.value)}
-                placeholder="Sale ID"
-              />
+        {canUpdateStatus ? (
+          <section className="card">
+            <h3>Reopen Failed Invoice</h3>
+            <div className="form">
+              <div className="field">
+                <label>Sale ID</label>
+                <input
+                  value={manualSaleId}
+                  onChange={(e) => setManualSaleId(e.target.value)}
+                  placeholder="Sale ID"
+                />
+              </div>
+              <div className="field">
+                <label>Reason (optional)</label>
+                <input
+                  value={manualReason}
+                  onChange={(e) => setManualReason(e.target.value)}
+                  placeholder="Optional reason"
+                />
+              </div>
+              <button type="button" onClick={manualReopen}>
+                Mark Pending
+              </button>
             </div>
-            <div className="field">
-              <label>Reason (optional)</label>
-              <input
-                value={manualReason}
-                onChange={(e) => setManualReason(e.target.value)}
-                placeholder="Optional reason"
-              />
+          </section>
+        ) : (
+          <section className="card">
+            <h3>Status Actions</h3>
+            <div className="muted">
+              Status changes are restricted to Manager and CEO.
             </div>
-            <button type="button" onClick={manualReopen}>
-              Mark Pending
-            </button>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
 
       <div className="split-view">
@@ -321,13 +335,17 @@ export default function EbmDashboard() {
                   <div>{row.buyerName || row.buyerTin || "-"}</div>
                   <div>{money(row.total)}</div>
                   <div className="button-row">
-                    <button
-                      type="button"
-                      className="button-outline"
-                      onClick={() => openAction(row, "FAILED")}
-                    >
-                      Mark Failed
-                    </button>
+                    {canUpdateStatus ? (
+                      <button
+                        type="button"
+                        className="button-outline"
+                        onClick={() => openAction(row, "FAILED")}
+                      >
+                        Mark Failed
+                      </button>
+                    ) : (
+                      <span className="muted">View only</span>
+                    )}
                   </div>
                 </div>
               ))
@@ -384,40 +402,42 @@ export default function EbmDashboard() {
         </section>
       </div>
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={actionType === "FAILED" ? "Mark EBM Failed" : "Mark EBM Pending"}
-        footer={
-          <div className="button-row">
-            <button
-              type="button"
-              className="button-outline"
-              onClick={() => setModalOpen(false)}
-            >
-              Cancel
-            </button>
-            <button type="button" onClick={submitAction}>
-              Confirm
-            </button>
+      {canUpdateStatus ? (
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={actionType === "FAILED" ? "Mark EBM Failed" : "Mark EBM Pending"}
+          footer={
+            <div className="button-row">
+              <button
+                type="button"
+                className="button-outline"
+                onClick={() => setModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button type="button" onClick={submitAction}>
+                Confirm
+              </button>
+            </div>
+          }
+        >
+          <div className="form">
+            <div className="field">
+              <label>Invoice</label>
+              <input value={actionSale?.invoiceNo || ""} disabled />
+            </div>
+            <div className="field">
+              <label>Reason {actionType === "FAILED" ? "(required)" : "(optional)"}</label>
+              <input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Reason"
+              />
+            </div>
           </div>
-        }
-      >
-        <div className="form">
-          <div className="field">
-            <label>Invoice</label>
-            <input value={actionSale?.invoiceNo || ""} disabled />
-          </div>
-          <div className="field">
-            <label>Reason {actionType === "FAILED" ? "(required)" : "(optional)"}</label>
-            <input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason"
-            />
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      ) : null}
     </div>
   );
 }

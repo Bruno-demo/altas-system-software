@@ -12,9 +12,9 @@ const {
 } = require("../controllers/manager.advanced.controller");
 
 // Manager & CEO can view these
-router.get("/kpis", auth, allowRoles("MANAGER", "CEO"), kpis);
-router.get("/sales/export/excel", auth, allowRoles("MANAGER", "CEO"), exportSalesExcel);
-router.get("/audit", auth, allowRoles("MANAGER", "CEO"), auditViewer);
-router.get("/stock/valuation", auth, allowRoles("MANAGER", "CEO"), stockValuation);
+router.get("/kpis", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), kpis);
+router.get("/sales/export/excel", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), exportSalesExcel);
+router.get("/audit", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), auditViewer);
+router.get("/stock/valuation", auth, allowRoles("MANAGER", "ACCOUNTANT", "CEO"), stockValuation);
 
 module.exports = router;

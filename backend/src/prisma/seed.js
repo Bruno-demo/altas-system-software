@@ -116,7 +116,15 @@ async function main() {
   await wipeDatabase();
 
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
-  const roles = ["STORE_KEEPER", "CASHIER", "SALESPERSON", "MANAGER", "HR", "CEO"];
+  const roles = [
+    "STORE_KEEPER",
+    "CASHIER",
+    "SALESPERSON",
+    "MANAGER",
+    "ACCOUNTANT",
+    "HR",
+    "CEO",
+  ];
 
   // ===== Users =====
   const defaultUsers = [

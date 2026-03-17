@@ -13,20 +13,30 @@ const {
   softDeleteExpense,
 } = require("../controllers/expenses.controller");
 
-// Write: CEO + MANAGER (HR read-only)
-router.post("/", auth, allowRoles("CEO", "MANAGER"), createExpense);
+// Write: CEO + MANAGER + ACCOUNTANT (HR read-only)
+router.post("/", auth, allowRoles("CEO", "MANAGER", "ACCOUNTANT"), createExpense);
 
-// Read: CEO + MANAGER + HR
-router.get("/", auth, allowRoles("CEO", "MANAGER", "HR"), listExpenses);
-router.get("/summary", auth, allowRoles("CEO", "MANAGER", "HR"), expensesSummary);
+// Read: CEO + MANAGER + HR + ACCOUNTANT
+router.get("/", auth, allowRoles("CEO", "MANAGER", "HR", "ACCOUNTANT"), listExpenses);
+router.get(
+  "/summary",
+  auth,
+  allowRoles("CEO", "MANAGER", "HR", "ACCOUNTANT"),
+  expensesSummary
+);
 
 // ✅ Export
-router.get("/export/excel", auth, allowRoles("CEO", "MANAGER", "HR"), exportExpensesExcel);
+router.get(
+  "/export/excel",
+  auth,
+  allowRoles("CEO", "MANAGER", "HR", "ACCOUNTANT"),
+  exportExpensesExcel
+);
 
 // ✅ Edit
-router.put("/:id", auth, allowRoles("CEO", "MANAGER"), updateExpense);
+router.put("/:id", auth, allowRoles("CEO", "MANAGER", "ACCOUNTANT"), updateExpense);
 
 // ✅ Soft delete
-router.delete("/:id", auth, allowRoles("CEO", "MANAGER"), softDeleteExpense);
+router.delete("/:id", auth, allowRoles("CEO", "MANAGER", "ACCOUNTANT"), softDeleteExpense);
 
 module.exports = router;

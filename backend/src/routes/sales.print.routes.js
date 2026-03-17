@@ -9,8 +9,18 @@ const {
   getSaleReceiptHtml,
 } = require("../controllers/sales.print.controller");
 
-// Cashier/Manager/CEO can print
-router.get("/:id/print", auth, allowRoles("CASHIER", "MANAGER", "CEO"), getSalePrintJson);
-router.get("/:id/receipt-html", auth, allowRoles("CASHIER", "MANAGER", "CEO"), getSaleReceiptHtml);
+// Cashier/Manager/CEO/Accountant can print
+router.get(
+  "/:id/print",
+  auth,
+  allowRoles("CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  getSalePrintJson
+);
+router.get(
+  "/:id/receipt-html",
+  auth,
+  allowRoles("CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  getSaleReceiptHtml
+);
 
 module.exports = router;

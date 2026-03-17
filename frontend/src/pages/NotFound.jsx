@@ -5,6 +5,7 @@ const homeByRole = {
   CASHIER: "/cashier",
   STORE_KEEPER: "/storekeeper",
   MANAGER: "/manager",
+  ACCOUNTANT: "/accountant",
   HR: "/hr",
   CEO: "/ceo",
   SALESPERSON: "/motorbikes",

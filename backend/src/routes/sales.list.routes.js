@@ -10,9 +10,19 @@ const {
 } = require("../controllers/sales.list.controller");
 
 // Invoice list
-router.get("/", auth, allowRoles("SALESPERSON", "CASHIER", "MANAGER", "CEO"), listSales);
+router.get(
+  "/",
+  auth,
+  allowRoles("SALESPERSON", "CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  listSales
+);
 
 // Single sale summary (optional but useful)
-router.get("/:id", auth, allowRoles("SALESPERSON", "CASHIER", "MANAGER", "CEO"), getSaleById);
+router.get(
+  "/:id",
+  auth,
+  allowRoles("SALESPERSON", "CASHIER", "MANAGER", "ACCOUNTANT", "CEO"),
+  getSaleById
+);
 
 module.exports = router;

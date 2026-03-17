@@ -71,7 +71,7 @@ function emptyFormState() {
 
 export default function Expenses() {
   const { user } = useAuth();
-  const canWrite = ["CEO", "MANAGER"].includes(user?.role);
+  const canWrite = ["CEO", "MANAGER", "ACCOUNTANT"].includes(user?.role);
 
   const [period, setPeriod] = useState("this_month");
   const [from, setFrom] = useState("");

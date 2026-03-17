@@ -16,7 +16,15 @@ function normalizeEmail(email) {
 
 function assertRole(role) {
   // What this does: validates role is one of Prisma enum Role
-  const allowed = ["STORE_KEEPER", "CASHIER", "SALESPERSON", "MANAGER", "HR", "CEO"];
+  const allowed = [
+    "STORE_KEEPER",
+    "CASHIER",
+    "SALESPERSON",
+    "MANAGER",
+    "ACCOUNTANT",
+    "HR",
+    "CEO",
+  ];
   if (!allowed.includes(role)) {
     const err = new Error(`Invalid role. Allowed: ${allowed.join(", ")}`);
     err.status = 400;

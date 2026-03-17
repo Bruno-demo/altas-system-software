@@ -10,6 +10,7 @@ import ChangePassword from "./pages/ChangePassword";
 import CashierDashboard from "./pages/dashboard/CashierDashboard";
 import StoreKeeperDashboard from "./pages/dashboard/StoreKeeperDashboard";
 import ManagerDashboard from "./pages/dashboard/ManagerDashboard";
+import AccountantDashboard from "./pages/dashboard/AccountantDashboard";
 import HRDashboard from "./pages/dashboard/HRDashboard";
 import CEODashboard from "./pages/dashboard/CEODashboard";
 import PosSearch from "./pages/pos/PosSearch";
@@ -44,6 +45,7 @@ const homeByRole = {
   CASHIER: "/cashier",
   STORE_KEEPER: "/storekeeper",
   MANAGER: "/manager",
+  ACCOUNTANT: "/accountant",
   HR: "/hr",
   CEO: "/ceo",
   SALESPERSON: "/motorbikes",
@@ -131,7 +133,7 @@ export default function App() {
       <Route
         path="/invoices"
         element={
-          <ProtectedRoute roles={["CASHIER", "MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["CASHIER", "MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <InvoiceList />
             </AppLayout>
@@ -141,7 +143,7 @@ export default function App() {
       <Route
         path="/sales"
         element={
-          <ProtectedRoute roles={["SALESPERSON", "CASHIER", "MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["SALESPERSON", "CASHIER", "MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <SalesBrowse />
             </AppLayout>
@@ -215,7 +217,7 @@ export default function App() {
       <Route
         path="/reports/overview"
         element={
-          <ProtectedRoute roles={["MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <ReportsOverview />
             </AppLayout>
@@ -225,7 +227,7 @@ export default function App() {
       <Route
         path="/reports/sales"
         element={
-          <ProtectedRoute roles={["MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <SalesReports />
             </AppLayout>
@@ -235,7 +237,7 @@ export default function App() {
       <Route
         path="/reports/expenses"
         element={
-          <ProtectedRoute roles={["HR", "MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["HR", "MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <Expenses />
             </AppLayout>
@@ -245,7 +247,7 @@ export default function App() {
       <Route
         path="/reports/sales-sdc"
         element={
-          <ProtectedRoute roles={["MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <SalesSdc />
             </AppLayout>
@@ -255,7 +257,7 @@ export default function App() {
       <Route
         path="/reports/stock-valuation"
         element={
-          <ProtectedRoute roles={["MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <StockValuation />
             </AppLayout>
@@ -265,7 +267,7 @@ export default function App() {
       <Route
         path="/reports/audit"
         element={
-          <ProtectedRoute roles={["MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <AuditViewer />
             </AppLayout>
@@ -275,7 +277,7 @@ export default function App() {
       <Route
         path="/reports/ebm"
         element={
-          <ProtectedRoute roles={["MANAGER", "CEO"]}>
+          <ProtectedRoute roles={["MANAGER", "ACCOUNTANT", "CEO"]}>
             <AppLayout>
               <EbmDashboard />
             </AppLayout>
@@ -302,6 +304,18 @@ export default function App() {
           <ProtectedRoute roles={["MANAGER", "CEO"]}>
             <AppLayout>
               <ManagerDashboard />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Accountant */}
+      <Route
+        path="/accountant"
+        element={
+          <ProtectedRoute roles={["ACCOUNTANT", "MANAGER", "CEO"]}>
+            <AppLayout>
+              <AccountantDashboard />
             </AppLayout>
           </ProtectedRoute>
         }

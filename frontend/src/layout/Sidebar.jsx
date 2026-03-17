@@ -49,6 +49,18 @@ const linksByRole = {
     { to: "/products", label: "Products" },
     { to: "/bins", label: "Bins" },
   ],
+  ACCOUNTANT: [
+    { to: "/accountant", label: "Accountant Dashboard" },
+    { to: "/reports/overview", label: "Reports Overview" },
+    { to: "/reports/expenses", label: "Expenses" },
+    { to: "/reports/sales", label: "Sales Reports" },
+    { to: "/reports/sales-sdc", label: "SDC Sales" },
+    { to: "/reports/ebm", label: "EBM Dashboard" },
+    { to: "/reports/stock-valuation", label: "Stock Valuation" },
+    { to: "/reports/audit", label: "Audit Viewer" },
+    { to: "/invoices", label: "Invoice List" },
+    { to: "/sales", label: "Sales" },
+  ],
   HR: [
     { to: "/hr", label: "HR Dashboard" },
     { to: "/reports/expenses", label: "Expenses" },

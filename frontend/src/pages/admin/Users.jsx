@@ -9,7 +9,15 @@ import {
 } from "../../api/admin";
 import { useAuth } from "../../auth/AuthContext";
 
-const roleOptions = ["STORE_KEEPER", "CASHIER", "SALESPERSON", "MANAGER", "HR", "CEO"];
+const roleOptions = [
+  "STORE_KEEPER",
+  "CASHIER",
+  "SALESPERSON",
+  "MANAGER",
+  "ACCOUNTANT",
+  "HR",
+  "CEO",
+];
 
 const emptyForm = {
   fullName: "",
