@@ -13,7 +13,6 @@ const financeRoles = ["ACCOUNTANT", "MANAGER", "CEO"];
 router.get("/accounts", allowRoles(...financeRoles), controller.listAccounts);
 router.post("/accounts", allowRoles(...financeRoles), controller.createAccount);
 router.put("/accounts/:id", allowRoles(...financeRoles), controller.updateAccount);
-router.post("/accounts/seed-defaults", allowRoles(...financeRoles), controller.seedDefaultAccounts);
 
 router.get("/journals", allowRoles(...financeRoles), controller.listJournalEntries);
 router.post("/journals", allowRoles(...financeRoles), controller.createJournalEntry);

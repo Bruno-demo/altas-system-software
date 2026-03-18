@@ -2,7 +2,6 @@
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
 const {
-  ensureDefaultAccounts,
   createJournalEntry,
   reverseJournalEntry,
   normalizeText,
@@ -97,29 +96,6 @@ function resolveRange(query, { required = false } = {}) {
 
   return { from, to, period: p, start, end };
 }
-
-exports.seedDefaultAccounts = async (req, res) => {
-  try {
-    const accounts = await prisma.$transaction(async (tx) => {
-      const map = await ensureDefaultAccounts(tx);
-      const rows = Object.values(map).sort((a, b) => String(a.code).localeCompare(String(b.code)));
-
-      await tx.auditLog.create({
-        data: {
-          userId: req.user.id,
-          action: "SEED_DEFAULT_ACCOUNTS",
-          details: `Seeded ${rows.length} default accounts`,
-        },
-      });
-
-      return rows;
-    });
-
-    return res.json({ count: accounts.length, accounts });
-  } catch (err) {
-    return handleError(res, err, { status: err.status || 500 });
-  }
-};
 
 exports.listAccounts = async (req, res) => {
   try {

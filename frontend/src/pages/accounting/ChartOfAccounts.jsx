@@ -3,7 +3,6 @@ import Drawer from "../../components/Drawer";
 import {
   createAccount,
   listAccounts,
-  seedDefaultAccounts,
   updateAccount,
 } from "../../api/accounting";
 
@@ -137,18 +136,6 @@ export default function ChartOfAccounts() {
     }
   };
 
-  const handleSeed = async () => {
-    setMessage("");
-    setSuccess("");
-    try {
-      await seedDefaultAccounts();
-      setSuccess("Default chart of accounts created.");
-      loadAccounts();
-    } catch (err) {
-      setMessage(err?.response?.data?.message || "Failed to seed chart of accounts.");
-    }
-  };
-
   return (
     <div className="page">
       <div className="page-header">
@@ -157,11 +144,6 @@ export default function ChartOfAccounts() {
           <p className="muted">Maintain your account structure for accurate reporting.</p>
         </div>
         <div className="button-row">
-          {rows.length === 0 ? (
-            <button type="button" className="button-outline" onClick={handleSeed}>
-              Seed Default Chart
-            </button>
-          ) : null}
           <button type="button" onClick={openCreate}>
             New Account
           </button>
