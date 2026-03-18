@@ -19,6 +19,8 @@ const accountCategories = [
   // Expense categories
   "COGS", "RENT", "SALARY", "UTILITIES", "TRANSPORT", "MAINTENANCE", "OFFICE", "STOCK_PURCHASE"
 ];
+
+function emptyForm() {
   return {
     code: "",
     name: "",
