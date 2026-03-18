@@ -6,12 +6,14 @@ const allowRoles = require("../middleware/roles");
 const {
   listLocations,
   createLocation,
+  getLocationById,
   updateLocation,
   deleteLocation,
 } = require("../controllers/locations.controller");
 
 // Any logged-in user can fetch locations (cashier will need this later)
 router.get("/", auth, listLocations);
+router.get("/:id", auth, getLocationById);
 
 // Store Keeper / Salesperson / Manager / CEO can manage locations
 router.post(

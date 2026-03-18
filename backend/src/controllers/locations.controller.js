@@ -1,103 +1,200 @@
-// What this does: handles full Location CRUD and syncs motorbike branch settings to keep data consistent.
+// What this does: handles Location CRUD operations within branches
 const prisma = require("../prisma");
 const { handleError } = require("../utils/errors");
-const {
-  normalizeBranchName,
-  normalizeBranchKey,
-  parseCounterValue,
-  findBranchCounterByName,
-  getBranchMinStockMap,
-  setBranchMinStock,
-  removeBranchMinStock,
-} = require("../utils/branchMinStock");
-
-function parseMinStock(value, options = {}) {
-  const { required = false } = options;
-  if (value == null || String(value).trim() === "") {
-    if (required) {
-      const err = new Error("minStock is required");
-      err.status = 400;
-      throw err;
-    }
-    return null;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    const err = new Error("minStock must be an integer >= 0");
-    err.status = 400;
-    throw err;
-  }
-  return parsed;
-}
 
 exports.listLocations = async (req, res) => {
   try {
-    const q = normalizeBranchName(req.query?.q);
-    const where = q
-      ? {
-          name: { contains: q, mode: "insensitive" },
-        }
-      : undefined;
+    const branchId = req.query?.branchId;
+    const q = req.query?.q;
 
-    const [locations, minStockMap] = await Promise.all([
-      prisma.location.findMany({
-        where,
-        orderBy: { name: "asc" },
-      }),
-      getBranchMinStockMap(prisma),
-    ]);
+    const where = {};
+    if (branchId) where.branchId = branchId;
+    if (q) {
+      where.name = { contains: q, mode: "insensitive" };
+    }
 
-    const rows = locations.map((location) => ({
-      ...location,
-      minStock: minStockMap.get(normalizeBranchKey(location.name)) ?? 0,
-    }));
+    const locations = await prisma.location.findMany({
+      where,
+      include: {
+        branch: true,
+        bins: {
+          orderBy: { code: "asc" },
+        },
+        _count: {
+          select: { bins: true },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
 
-    return res.json(rows);
+    return res.json(locations);
   } catch (err) {
     return handleError(res, err, { status: err.status || 500 });
   }
 };
 
-// What this does: creates a location and stores default branch min-stock setting.
 exports.createLocation = async (req, res) => {
   try {
-    const name = normalizeBranchName(req.body?.name);
+    const name = req.body?.name?.trim();
+    const branchId = req.body?.branchId;
+
     if (!name) return res.status(400).json({ message: "name is required" });
+    if (!branchId) return res.status(400).json({ message: "branchId is required" });
 
-    const parsedMinStock = parseMinStock(req.body?.minStock);
-    const minStock = parsedMinStock == null ? 0 : parsedMinStock;
+    // Verify branch exists
+    const branch = await prisma.branch.findUnique({
+      where: { id: branchId },
+    });
+    if (!branch) return res.status(404).json({ message: "Branch not found" });
 
+    // Check for duplicate location name within the same branch
     const existing = await prisma.location.findFirst({
-      where: { name: { equals: name, mode: "insensitive" } },
-      select: { id: true, name: true },
+      where: {
+        name: { equals: name, mode: "insensitive" },
+        branchId,
+      },
     });
     if (existing) {
-      return res.status(409).json({ message: "Location name already exists." });
+      return res.status(409).json({ message: "Location name already exists in this branch." });
     }
 
-    const created = await prisma.$transaction(async (tx) => {
-      const location = await tx.location.create({ data: { name } });
+    const location = await prisma.location.create({
+      data: {
+        name,
+        branchId,
+      },
+      include: {
+        branch: true,
+      },
+    });
 
-      await setBranchMinStock(tx, name, minStock);
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: "CREATE_LOCATION",
+        details: `Created location ${location.name} in branch ${branch.name}`,
+      },
+    });
 
-      const synced = await tx.product.updateMany({
-        where: {
-          category: "Motorbike",
-          branchName: { equals: name, mode: "insensitive" },
+    return res.status(201).json(location);
+  } catch (err) {
+    return handleError(res, err, { status: err.status || 500 });
+  }
+};
+
+exports.getLocationById = async (req, res) => {
+  try {
+    const location = await prisma.location.findUnique({
+      where: { id: req.params.id },
+      include: {
+        branch: true,
+        bins: {
+          orderBy: { code: "asc" },
         },
-        data: { minStock },
-      });
+      },
+    });
 
-      await tx.auditLog.create({
-        data: {
-          userId: req.user.id,
-          action: "CREATE_LOCATION",
-          details: `Created location ${location.name} | minStock=${minStock} | syncedProducts=${synced.count}`,
-        },
-      });
+    if (!location) return res.status(404).json({ message: "Location not found" });
 
-      return { location, syncedProducts: synced.count };
+    return res.json(location);
+  } catch (err) {
+    return handleError(res, err, { status: err.status || 500 });
+  }
+};
+
+exports.updateLocation = async (req, res) => {
+  try {
+    const name = req.body?.name?.trim();
+    const branchId = req.body?.branchId;
+
+    if (!name) return res.status(400).json({ message: "name is required" });
+    if (!branchId) return res.status(400).json({ message: "branchId is required" });
+
+    // Verify branch exists
+    const branch = await prisma.branch.findUnique({
+      where: { id: branchId },
+    });
+    if (!branch) return res.status(404).json({ message: "Branch not found" });
+
+    // Check for duplicate location name within the same branch
+    const existing = await prisma.location.findFirst({
+      where: {
+        name: { equals: name, mode: "insensitive" },
+        branchId,
+        id: { not: req.params.id },
+      },
+    });
+    if (existing) {
+      return res.status(409).json({ message: "Location name already exists in this branch." });
+    }
+
+    const location = await prisma.location.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        branchId,
+      },
+      include: {
+        branch: true,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: "UPDATE_LOCATION",
+        details: `Updated location ${location.name} in branch ${branch.name}`,
+      },
+    });
+
+    return res.json(location);
+  } catch (err) {
+    return handleError(res, err, { status: err.status || 500 });
+  }
+};
+
+exports.deleteLocation = async (req, res) => {
+  try {
+    const location = await prisma.location.findUnique({
+      where: { id: req.params.id },
+      include: {
+        branch: true,
+        bins: true,
+        inventory: true,
+      },
+    });
+
+    if (!location) return res.status(404).json({ message: "Location not found" });
+
+    if (location.bins.length > 0) {
+      return res.status(409).json({
+        message: "Cannot delete location with existing bins. Delete bins first.",
+      });
+    }
+
+    if (location.inventory.length > 0) {
+      return res.status(409).json({
+        message: "Cannot delete location with existing inventory. Move inventory first.",
+      });
+    }
+
+    await prisma.location.delete({
+      where: { id: req.params.id },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: "DELETE_LOCATION",
+        details: `Deleted location ${location.name} from branch ${location.branch.name}`,
+      },
+    });
+
+    return res.status(204).send();
+  } catch (err) {
+    return handleError(res, err, { status: err.status || 500 });
+  }
+};
     });
 
     return res.status(201).json({

@@ -10,6 +10,7 @@ const productRoutes = require("./routes/products.routes");
 const stockRoutes = require("./routes/stock.routes");
 // What this does: registers all API routes including locations
 const locationsRoutes = require("./routes/locations.routes");
+const branchesRoutes = require("./routes/branches.routes");
 const binsRoutes = require("./routes/bins.routes");
 const posRoutes = require("./routes/pos.routes");
 // What this does: registers manager reports routes
@@ -68,6 +69,7 @@ app.use((req, res, next) => {
 
 app.use("/api/bins", binsRoutes);
 // add this line with the others:
+app.use("/api/branches", branchesRoutes);
 app.use("/api/locations", locationsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", authExtraRoutes);
