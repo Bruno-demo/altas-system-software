@@ -42,6 +42,8 @@ function resolveRange(query, { required = false } = {}) {
   const fromRaw = s(query.from);
   const toRaw = s(query.to);
 
+  const endOfDay = (date) => new Date(date.getTime() + 24 * 60 * 60 * 1000 - 1);
+
   if (fromRaw || toRaw) {
     if (!fromRaw || !toRaw) {
       const err = new Error("Both from and to are required when using custom range");
@@ -51,7 +53,7 @@ function resolveRange(query, { required = false } = {}) {
 
     const start = parseISODateOnly(fromRaw, "from");
     const toStart = parseISODateOnly(toRaw, "to");
-    const end = new Date(toStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const end = endOfDay(toStart);
 
     return { from: fromRaw, to: toRaw, period: null, start, end };
   }
@@ -72,21 +74,21 @@ function resolveRange(query, { required = false } = {}) {
 
   if (p === "today") {
     startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    endDate = endOfDay(startDate);
   } else if (p === "this_week") {
     const day = now.getDay(); // 0 Sun ... 6 Sat
     const diffToMonday = (day === 0 ? -6 : 1) - day;
     startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
-    endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 6);
+    endDate = endOfDay(new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 6));
   } else if (p === "this_month") {
     startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    endDate = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   } else if (p === "this_year") {
     startDate = new Date(now.getFullYear(), 0, 1);
-    endDate = new Date(now.getFullYear(), 11, 31);
+    endDate = endOfDay(new Date(now.getFullYear(), 11, 31));
   } else if (p === "all") {
     startDate = new Date(2000, 0, 1);
-    endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    endDate = endOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
   } else {
     const err = new Error("period must be today|this_week|this_month|this_year|all");
     err.status = 400;
@@ -102,7 +104,7 @@ function resolveRange(query, { required = false } = {}) {
 
   const start = parseISODateOnly(from, "from");
   const toStart = parseISODateOnly(to, "to");
-  const end = new Date(toStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const end = endOfDay(toStart);
 
   return { from, to, period: p, start, end };
 }
