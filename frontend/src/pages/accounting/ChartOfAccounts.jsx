@@ -9,7 +9,16 @@ import {
 
 const accountTypes = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"];
 
-function emptyForm() {
+const accountCategories = [
+  // Asset categories
+  "CASH", "MOMO", "BANK", "CARD", "AR", "INVENTORY",
+  // Liability categories
+  "AP", "LOAN", "TAX",
+  // Revenue categories
+  "MOTORBIKE", "SPARE_PARTS", "SERVICES", "OTHER",
+  // Expense categories
+  "COGS", "RENT", "SALARY", "UTILITIES", "TRANSPORT", "MAINTENANCE", "OFFICE", "STOCK_PURCHASE"
+];
   return {
     code: "",
     name: "",
@@ -312,10 +321,17 @@ export default function ChartOfAccounts() {
           </label>
           <label className="field">
             Category
-            <input
+            <select
               value={form.category}
               onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
-            />
+            >
+              <option value="">Select category (optional)</option>
+              {accountCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="checkbox-field">
             <input
