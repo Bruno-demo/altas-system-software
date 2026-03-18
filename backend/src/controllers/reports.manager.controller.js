@@ -925,9 +925,27 @@ exports.auditLogs = async (req, res) => {
       where.createdAt = { gte: start, lte: end };
     }
 
+    const category = s(req.query.category);
     const userId = s(req.query.userId);
     const action = s(req.query.action);
     const q = s(req.query.q);
+
+    if (category) {
+      // Group common actions into a few logical “audit categories".
+      if (category === "accounting") {
+        // Account-related actions: journal entries + COA changes
+        where.OR = [
+          { action: { startsWith: "JOURNAL_" } },
+          { action: { in: ["CREATE_ACCOUNT", "UPDATE_ACCOUNT", "SEED_DEFAULT_ACCOUNTS"] } },
+        ];
+      } else if (category === "stock") {
+        where.OR = [{ action: { startsWith: "STOCK_" } }];
+      } else if (category === "hr") {
+        where.OR = [{ action: { startsWith: "HR_" } }];
+      } else if (category === "sales") {
+        where.OR = [{ action: { contains: "SALE", mode: "insensitive" } }];
+      }
+    }
 
     if (userId) {
       where.userId = userId;
@@ -938,10 +956,10 @@ exports.auditLogs = async (req, res) => {
     }
 
     if (q) {
-      where.OR = [
+      where.OR = (where.OR || []).concat([
         { details: { contains: q, mode: "insensitive" } },
         { action: { contains: q, mode: "insensitive" } },
-      ];
+      ]);
     }
 
     const [total, logs] = await prisma.$transaction([

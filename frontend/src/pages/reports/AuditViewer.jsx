@@ -5,6 +5,7 @@ import { getAudit } from "../../api/manager";
 export default function AuditViewer() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [category, setCategory] = useState("");
   const [userId, setUserId] = useState("");
   const [action, setAction] = useState("");
   const [q, setQ] = useState("");
@@ -26,6 +27,7 @@ export default function AuditViewer() {
       const params = {
         page,
         limit,
+        category: category || undefined,
         userId: userId.trim() || undefined,
         action: action.trim() || undefined,
         q: q.trim() || undefined,
@@ -79,6 +81,22 @@ export default function AuditViewer() {
         <label className="field">
           To
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </label>
+        <label className="field">
+          Category
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All</option>
+            <option value="accounting">Accounting</option>
+            <option value="stock">Stock</option>
+            <option value="hr">HR</option>
+            <option value="sales">Sales</option>
+          </select>
         </label>
         <label className="field">
           User ID
