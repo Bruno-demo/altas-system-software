@@ -39,9 +39,20 @@ const {
   writeErrorLog,
 } = require("./utils/errorLogger");
 
+// What this does: validate critical environment variables at startup
+function validateEnvironment() {
+  const required = ["JWT_SECRET", "DATABASE_URL"];
+  const missing = required.filter((key) => !process.env[key]);
+  
+  if (missing.length > 0) {
+    const err = new Error(`Missing required environment variables: ${missing.join(", ")}`);
+    console.error("[STARTUP_ERROR]", err.message);
+    writeErrorLog({ err, context: "startup.environment", status: 500 });
+    process.exit(1);
+  }
+}
 
-
-
+validateEnvironment();
 
 const app = express();
 cleanupOldErrorLogs();
