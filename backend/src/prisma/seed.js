@@ -190,46 +190,21 @@ async function main() {
   const cashierUsers = usersByRole.CASHIER;
   const storeKeepers = usersByRole.STORE_KEEPER;
 
-  // ===== Branches =====
-  const branchNames = ["Kicukiro", "Gasabo", "Nyarugenge"];
+  // ===== Locations + Bins =====
+  const locationNames = ["Muhima", "Kacyiru", "Kimironko", "Nyabugogo", "Remera", "Gisozi"].slice(
+    0,
+    TARGET.LOCATIONS
+  );
   await createManyInChunks(
-    prisma.branch,
-    branchNames.map((name, i) => ({
+    prisma.location,
+    locationNames.map((name, i) => ({
       name,
-      createdAt: daysAgoUtc(800 - i, 8),
+      createdAt: daysAgoUtc(700 - i, 8),
     }))
   );
 
-  const branches = await prisma.branch.findMany();
-  const branchByName = new Map(branches.map((b) => [b.name, b]));
-
-  // ===== Locations + Bins =====
-  const locationConfigs = [
-    { branch: "Kicukiro", locations: ["First Floor", "Second Floor", "Ground Floor"] },
-    { branch: "Gasabo", locations: ["Main Warehouse", "Showroom", "Service Area"] },
-    { branch: "Nyarugenge", locations: ["Storage Room", "Sales Floor"] },
-  ];
-
-  const locationRows = [];
-  for (const config of locationConfigs) {
-    const branch = branchByName.get(config.branch);
-    if (!branch) continue;
-
-    for (const locationName of config.locations) {
-      locationRows.push({
-        name: locationName,
-        branchId: branch.id,
-        createdAt: daysAgoUtc(700 - branches.indexOf(branch), 8),
-      });
-    }
-  }
-
-  await createManyInChunks(prisma.location, locationRows);
-
-  const locations = await prisma.location.findMany({
-    include: { branch: true }
-  });
-  const locationByName = new Map(locations.map((l) => [`${l.branch.name}-${l.name}`, l]));
+  const locations = await prisma.location.findMany();
+  const locationByName = new Map(locations.map((l) => [l.name, l]));
 
   const binPrefixes = ["A", "B", "C", "D", "E", "F", "G", "H"];
   const binRows = [];

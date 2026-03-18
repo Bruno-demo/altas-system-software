@@ -1,7 +1,7 @@
 // What this does: cashier can search products, add to cart, and checkout to create an invoice
 import { useEffect, useMemo, useState } from "react";
 import { createSale, fetchReceiptHtml, searchProducts } from "../../api/sales";
-import { listLocations, listBranches } from "../../api/inventory";
+import { listLocations } from "../../api/inventory";
 
 function money(n) {
   const value = Number(n || 0);
@@ -31,7 +31,6 @@ export default function PosTerminal() {
   const [buyerPhone, setBuyerPhone] = useState("");
   const [note, setNote] = useState("");
 
-  const [branches, setBranches] = useState([]);
   const [locations, setLocations] = useState([]);
   const [selectedLocationId, setSelectedLocationId] = useState(() => {
     // Initialize from localStorage if available
@@ -41,26 +40,18 @@ export default function PosTerminal() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Load branches and locations
-    Promise.all([
-      listBranches(),
-      listLocations()
-    ])
-      .then(([branchesRes, locationsRes]) => {
-        const branchesData = branchesRes.data || [];
-        const locationsData = locationsRes.data || [];
-
-        setBranches(branchesData);
-        setLocations(locationsData);
-
-        // Set selected location from storage or default to first location
+    listLocations()
+      .then((res) => {
+        const payload = res.data || [];
+        setLocations(payload);
         setSelectedLocationId((prev) => {
+          // Use stored value, or previous state, or first location as fallback
           const stored = localStorage.getItem("pos-selected-location");
-          return stored || prev || (locationsData[0]?.id || "");
+          return stored || prev || (payload[0]?.id || "");
         });
       })
       .catch((err) => {
-        console.error("Failed to load branches/locations", err);
+        console.error("Failed to load locations", err);
       });
   }, []);
 
@@ -314,7 +305,7 @@ export default function PosTerminal() {
                 ) : (
                   locations.map((loc) => (
                     <option key={loc.id} value={loc.id}>
-                      {loc.branch?.name} - {loc.name}
+                      {loc.name}
                     </option>
                   ))
                 )}
