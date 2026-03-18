@@ -123,35 +123,19 @@ model Product {
   @@index([partNumber])
 }
 
-model Branch {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-
-  // What this does: locations within this branch
-  locations Location[]
-
-  @@map("branches")
-}
-
 model Location {
   id        String   @id @default(uuid())
-  name      String
-  branchId  String
-  branch    Branch   @relation(fields: [branchId], references: [id])
+  name      String   @unique
   createdAt DateTime @default(now())
 
   inventory    Inventory[]
   transactions StockTransaction[]
 
-  // What this does: allows a location (first floor) to have many shelf/bins (A1-01, A1-02...)
+  // What this does: allows a location (Main Store) to have many shelf/bins (A1-01, A1-02...)
   bins        StorageBin[]
   // What this does: allows Location -> SaleItem relation
   saleItems   SaleItem[]
   returnItems SaleReturnItem[]
-
-  @@unique([name, branchId])
-  @@map("locations")
 }
 
 model Inventory {
