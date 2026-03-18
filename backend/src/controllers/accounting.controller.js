@@ -102,7 +102,17 @@ exports.seedDefaultAccounts = async (req, res) => {
   try {
     const accounts = await prisma.$transaction(async (tx) => {
       const map = await ensureDefaultAccounts(tx);
-      return Object.values(map).sort((a, b) => String(a.code).localeCompare(String(b.code)));
+      const rows = Object.values(map).sort((a, b) => String(a.code).localeCompare(String(b.code)));
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: "SEED_DEFAULT_ACCOUNTS",
+          details: `Seeded ${rows.length} default accounts`,
+        },
+      });
+
+      return rows;
     });
 
     return res.json({ count: accounts.length, accounts });
@@ -158,8 +168,20 @@ exports.createAccount = async (req, res) => {
       return res.status(400).json({ message: `type must be one of: ${ACCOUNT_TYPES.join(", ")}` });
     }
 
-    const created = await prisma.account.create({
-      data: { code, name, type, category, isCash, isActive },
+    const created = await prisma.$transaction(async (tx) => {
+      const acc = await tx.account.create({
+        data: { code, name, type, category, isCash, isActive },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: "CREATE_ACCOUNT",
+          details: `Account ${acc.code} - ${acc.name} (${acc.type})`,
+        },
+      });
+
+      return acc;
     });
 
     return res.status(201).json(created);
@@ -188,7 +210,20 @@ exports.updateAccount = async (req, res) => {
     if (req.body.isCash != null) data.isCash = Boolean(req.body.isCash);
     if (req.body.isActive != null) data.isActive = Boolean(req.body.isActive);
 
-    const updated = await prisma.account.update({ where: { id }, data });
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.account.update({ where: { id }, data });
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: "UPDATE_ACCOUNT",
+          details: `Updated account ${u.code} - ${u.name} (${u.type})`,
+        },
+      });
+
+      return u;
+    });
+
     return res.json(updated);
   } catch (err) {
     return handleError(res, err, { status: err.status || 500 });
@@ -272,7 +307,7 @@ exports.createJournalEntry = async (req, res) => {
       }
     }
 
-    const entry = await prisma.$transaction((tx) =>
+    const entry = await prisma.$transaction(async (tx) =>
       createJournalEntry(tx, {
         date,
         memo,
@@ -492,9 +527,22 @@ exports.reverseJournalEntry = async (req, res) => {
 
     if (!entry) return res.status(404).json({ message: "Journal entry not found" });
 
-    const reversed = await prisma.$transaction((tx) =>
-      reverseJournalEntry(tx, entry, { memo: `Manual reversal of ${entry.reference || entry.id}`, createdById: req.user.id })
-    );
+    const reversed = await prisma.$transaction(async (tx) => {
+      const rev = await reverseJournalEntry(tx, entry, {
+        memo: `Manual reversal of ${entry.reference || entry.id}`,
+        createdById: req.user.id,
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: "REVERSE_JOURNAL_ENTRY",
+          details: `Reversed journal entry ${entry.id} (created ${entry.createdAt?.toISOString() || "?"})`,
+        },
+      });
+
+      return rev;
+    });
 
     return res.json({ message: "Reversal created", entry: reversed });
   } catch (err) {

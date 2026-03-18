@@ -925,6 +925,25 @@ exports.auditLogs = async (req, res) => {
       where.createdAt = { gte: start, lte: end };
     }
 
+    const userId = s(req.query.userId);
+    const action = s(req.query.action);
+    const q = s(req.query.q);
+
+    if (userId) {
+      where.userId = userId;
+    }
+
+    if (action) {
+      where.action = { contains: action, mode: "insensitive" };
+    }
+
+    if (q) {
+      where.OR = [
+        { details: { contains: q, mode: "insensitive" } },
+        { action: { contains: q, mode: "insensitive" } },
+      ];
+    }
+
     const [total, logs] = await prisma.$transaction([
       prisma.auditLog.count({ where }),
       prisma.auditLog.findMany({

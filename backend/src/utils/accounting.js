@@ -194,6 +194,25 @@ async function createJournalEntry(tx, { date, memo, reference, source, sourceId,
     },
   });
 
+  // Write an audit log entry so accountant actions appear in the Audit Viewer
+  // Only log if we have a user context (userId). Auto-generated/system entries may not have one.
+  if (createdById) {
+    try {
+      await tx.auditLog.create({
+        data: {
+          userId: createdById,
+          action: `JOURNAL_${String(source || "MANUAL").toUpperCase()}`,
+          details: `Created journal entry ${entry.id} (${entry.reference || "-"}) - ${entry.lines.length} lines`,
+        },
+      });
+    } catch (err) {
+      // Do not block journal entry creation if audit logging fails.
+      // This should be rare (e.g., missing auditLog table), but we want accounting operations to succeed.
+      // eslint-disable-next-line no-console
+      console.warn("Failed to write audit log for journal entry", err);
+    }
+  }
+
   return entry;
 }
 
