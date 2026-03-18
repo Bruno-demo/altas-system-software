@@ -32,7 +32,10 @@ export default function PosTerminal() {
   const [note, setNote] = useState("");
 
   const [locations, setLocations] = useState([]);
-  const [selectedLocationId, setSelectedLocationId] = useState("");
+  const [selectedLocationId, setSelectedLocationId] = useState(() => {
+    // Initialize from localStorage if available
+    return localStorage.getItem("pos-selected-location") || "";
+  });
 
   const [loading, setLoading] = useState(false);
 
@@ -41,12 +44,23 @@ export default function PosTerminal() {
       .then((res) => {
         const payload = res.data || [];
         setLocations(payload);
-        setSelectedLocationId((prev) => prev || (payload[0]?.id || ""));
+        setSelectedLocationId((prev) => {
+          // Use stored value, or previous state, or first location as fallback
+          const stored = localStorage.getItem("pos-selected-location");
+          return stored || prev || (payload[0]?.id || "");
+        });
       })
       .catch((err) => {
         console.error("Failed to load locations", err);
       });
   }, []);
+
+  // Save selected location to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedLocationId) {
+      localStorage.setItem("pos-selected-location", selectedLocationId);
+    }
+  }, [selectedLocationId]);
 
   const totals = useMemo(() => {
     let subtotal = 0;

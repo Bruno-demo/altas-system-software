@@ -298,6 +298,37 @@ exports.createSale = async (req, res) => {
         });
       }
 
+      // 4.2) Sync motorbike sales to branch tracking
+      for (const p of preparedItems) {
+        if (!p.product.chassisNumber && p.product.category !== "Motorbike") continue;
+
+        const branchName = p.product.branchName;
+        if (!branchName) continue; // Skip if no branch assigned
+
+        const chassisText = p.product.chassisNumber || "N/A";
+        const modelText = p.product.name || "Motorbike";
+        const itemName = chassisText !== "N/A" ? `${modelText} [${chassisText}]` : modelText;
+
+        const receiptType = `POS Sale | Invoice: ${invoiceNo} | Chassis: ${chassisText} | Type: Sale`;
+
+        await tx.salesSdcRow.create({
+          data: {
+            sdcId: invoiceNo, // Use invoice number as SDC ID for POS sales
+            buyerTin: buyerTinValue || null,
+            buyerName: buyerNameValue || null,
+            saleDate: new Date(),
+            receiptType,
+            itemName,
+            quantity: Number(p.quantity),
+            unitPrice: Number(p.unitPrice),
+            taxableSupplyPrice: Number(p.unitPrice) * Number(p.quantity),
+            vat: 0, // POS sales don't have VAT calculation yet
+            summaryAmount: Number(p.lineTotal),
+            uploadedById: req.user.id,
+          },
+        });
+      }
+
       // 4.5) Auto-post to accounting journal (cash/revenue + COGS)
       await autoPostSale(tx, sale, preparedItems);
 
