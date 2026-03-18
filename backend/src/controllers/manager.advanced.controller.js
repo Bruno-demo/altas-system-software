@@ -395,12 +395,33 @@ exports.auditViewer = async (req, res) => {
       where.createdAt = { gte: start, lte: end };
     }
 
+    const category = String(req.query.category || "").trim().toLowerCase();
+
+    // Optional category filter (e.g., accounting/stock/hr/sales)
+    if (category) {
+      if (category === "accounting") {
+        where.OR = [
+          { action: { startsWith: "JOURNAL_" } },
+          { action: { in: ["CREATE_ACCOUNT", "UPDATE_ACCOUNT", "SEED_DEFAULT_ACCOUNTS"] } },
+        ];
+      } else if (category === "stock") {
+        where.OR = [{ action: { startsWith: "STOCK_" } }];
+      } else if (category === "hr") {
+        where.OR = [{ action: { startsWith: "HR_" } }];
+      } else if (category === "sales") {
+        where.OR = [{ action: { contains: "SALE", mode: "insensitive" } }];
+      }
+    }
+
     if (req.query.userId) where.userId = String(req.query.userId).trim();
     if (req.query.action) where.action = String(req.query.action).trim();
 
     if (req.query.q) {
       const q = String(req.query.q).trim();
-      where.OR = [{ details: { contains: q, mode: "insensitive" } }, { action: { contains: q, mode: "insensitive" } }];
+      where.OR = (where.OR || []).concat([
+        { details: { contains: q, mode: "insensitive" } },
+        { action: { contains: q, mode: "insensitive" } },
+      ]);
     }
 
     const [total, rows] = await prisma.$transaction([
