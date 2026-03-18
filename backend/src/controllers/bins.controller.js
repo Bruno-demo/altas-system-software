@@ -207,9 +207,4 @@ exports.deleteBin = async (req, res) => {
   }
 };
 
-    res.json(bins);
-  } catch (err) {
-    return handleError(res, err, { status: 500 });
-  }
-};
 
