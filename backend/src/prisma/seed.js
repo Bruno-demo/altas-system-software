@@ -817,12 +817,20 @@ async function main() {
     const item = returnableItems[i];
     const credited = i % 6 === 0;
     const signature = credited ? `RET-SDC-${pad(i + 1, 5)}` : null;
-    const returnCreator = cashierUsers[i % cashierUsers.length] || managerUser || allUsers[0];
+
+    const returnCreator = await prisma.user.findFirst({
+      where: { role: "CASHIER" },
+      orderBy: { email: "asc" },
+      select: { id: true },
+    });
+
+    const safeReturnCreatorId = returnCreator?.id || managerUser?.id || allUsers[0]?.id;
+
     await prisma.saleReturn.create({
       data: {
         saleId: item.saleId,
         reason: `Seeded return reason ${i + 1}`,
-        createdById: returnCreator.id,
+        createdById: safeReturnCreatorId,
         createdAt: daysAgoUtc(40 - (i % 30), 14),
         ebmStatus: credited ? "CREDITED" : "PENDING",
         ebmSignature: signature,
