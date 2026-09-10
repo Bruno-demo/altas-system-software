@@ -82,31 +82,36 @@ function sumBy(items, selector) {
 }
 
 async function wipeDatabase() {
-  // What this does: clears data in FK-safe order so seed is always clean and deterministic.
-  await prisma.journalLine.deleteMany();
-  await prisma.journalEntry.deleteMany();
-  await prisma.account.deleteMany();
-  await prisma.saleReturnItem.deleteMany();
-  await prisma.saleReturn.deleteMany();
-  await prisma.saleItem.deleteMany();
-  await prisma.sale.deleteMany();
-  await prisma.cashierShift.deleteMany();
-  await prisma.payrollItem.deleteMany();
-  await prisma.payrollRun.deleteMany();
-  await prisma.salaryAdvance.deleteMany();
-  await prisma.attendance.deleteMany();
-  await prisma.employee.deleteMany();
-  await prisma.expense.deleteMany();
-  await prisma.salesSdcRow.deleteMany();
-  await prisma.motorbikePromotion.deleteMany();
-  await prisma.stockTransaction.deleteMany();
-  await prisma.inventory.deleteMany();
-  await prisma.storageBin.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.counter.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.location.deleteMany();
-  await prisma.user.deleteMany();
+  // What this does: uses PostgreSQL TRUNCATE CASCADE because Prisma deleteMany
+  // order is too brittle for a live database with chained foreign keys.
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE
+      "JournalLine",
+      "JournalEntry",
+      "Account",
+      "SaleReturnItem",
+      "SaleReturn",
+      "SaleItem",
+      "Sale",
+      "CashierShift",
+      "PayrollItem",
+      "PayrollRun",
+      "SalaryAdvance",
+      "Attendance",
+      "Employee",
+      "Expense",
+      "SalesSdcRow",
+      "MotorbikePromotion",
+      "StockTransaction",
+      "Inventory",
+      "StorageBin",
+      "AuditLog",
+      "Counter",
+      "Product",
+      "Location",
+      "User"
+    RESTART IDENTITY CASCADE;
+  `);
 }
 
 async function main() {
@@ -703,17 +708,30 @@ async function main() {
           ? JSON.stringify({ sdcId, invoiceNo: `ALT-2026-${pad(idx, 6)}`, total, buyerType })
           : null,
         ebmIssuedAt: sdcId ? new Date(createdAt.getTime() + 2 * 60 * 1000) : null,
-        items: { create: items },
       },
-      include: { items: true },
     });
+
+    await prisma.saleItem.createMany({
+      data: items.map((item) => ({
+        saleId: sale.id,
+        productId: item.productId,
+        locationId: item.locationId,
+        binId: item.binId || null,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+        lineTotal: item.lineTotal,
+      })),
+    });
+
+    const saleItems = await prisma.saleItem.findMany({ where: { saleId: sale.id } });
 
     saleSnapshots.push({
       id: sale.id,
       shiftId: sale.shiftId,
       paymentMethod,
       total: Number(sale.total),
-      items: sale.items,
+      items: saleItems,
     });
   }
 

@@ -57,13 +57,54 @@ export default function Login() {
   return (
     <div className="page login-page">
       <div className="login-shell">
-        <h1>Sign in</h1>
-        <p className="muted">Use your company account to continue.</p>
+        <section className="login-box">
+          <div className="login-brand">
+            <span className="brand-logo">AL-TAS</span>
+            <span className="brand-tag">Operations Platform</span>
+          </div>
 
-        {msg ? <div className="alert login-alert">{msg}</div> : null}
+          <div className="login-card">
+            <h1>Welcome back</h1>
+            <p className="muted login-subtitle">Use your company account to continue.</p>
 
-        <div className="card login-demo">
-          <div className="muted">Seeded demo accounts</div>
+            {msg ? <div className="alert login-alert">{msg}</div> : null}
+
+            <form className="card form" onSubmit={submit}>
+              <label className="field">
+                Email
+                <input
+                  placeholder="Email"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="field">
+                Password
+                <input
+                  placeholder="Password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </label>
+
+              <button type="submit" disabled={loading}>
+                {loading ? "Signing in..." : "Login"}
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <aside className="login-demo">
+          <div className="demo-head">
+            <span className="demo-title">Seeded demo accounts</span>
+            <span className="demo-password">Password: {seedPassword}</span>
+          </div>
           <div className="demo-list">
             {seededAccounts.map((account) => (
               <div className="demo-row" key={account.email}>
@@ -72,37 +113,7 @@ export default function Login() {
               </div>
             ))}
           </div>
-          <div className="muted demo-password">Password: {seedPassword}</div>
-        </div>
-
-        <form className="card form" onSubmit={submit}>
-          <label className="field">
-            Email
-            <input
-              placeholder="Email"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <label className="field">
-            Password
-            <input
-              placeholder="Password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
-
-          <button type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Login"}
-          </button>
-        </form>
+        </aside>
       </div>
     </div>
   );
