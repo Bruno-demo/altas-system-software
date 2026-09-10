@@ -193,7 +193,7 @@ async function main() {
   const userByEmail = new Map(allUsers.map((u) => [u.email.toLowerCase(), u]));
   const managerUser = userByEmail.get("manager@altas.local") || usersByRole.MANAGER[0];
   const hrUser = userByEmail.get("hr@altas.local") || usersByRole.HR[0];
-  const cashierUsers = usersByRole.CASHIER;
+  const cashierUsers = usersByRole.CASHIER.length ? usersByRole.CASHIER : [managerUser, hrUser].filter(Boolean);
   const storeKeepers = usersByRole.STORE_KEEPER;
 
   // ===== Locations + Bins =====
@@ -817,11 +817,12 @@ async function main() {
     const item = returnableItems[i];
     const credited = i % 6 === 0;
     const signature = credited ? `RET-SDC-${pad(i + 1, 5)}` : null;
+    const returnCreator = cashierUsers[i % cashierUsers.length] || managerUser || allUsers[0];
     await prisma.saleReturn.create({
       data: {
         saleId: item.saleId,
         reason: `Seeded return reason ${i + 1}`,
-        createdById: cashierUsers[i % cashierUsers.length].id,
+        createdById: returnCreator.id,
         createdAt: daysAgoUtc(40 - (i % 30), 14),
         ebmStatus: credited ? "CREDITED" : "PENDING",
         ebmSignature: signature,
