@@ -1,5 +1,7 @@
 // What this does: starts the Express API server and registers all routes
-require("dotenv").config({ override: true });
+// Only load local .env when the runtime environment variable is not already set.
+// This lets Render's injected DATABASE_URL and JWT_SECRET win over any repo-local file.
+require("dotenv").config({ override: false });
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
