@@ -4,6 +4,16 @@ import { useNavigate } from "react-router-dom";
 import { loginApi } from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
 
+const seededAccounts = [
+  { email: "ceo@altas.local", role: "CEO" },
+  { email: "manager@altas.local", role: "MANAGER" },
+  { email: "hr@altas.local", role: "HR" },
+  { email: "cashier@altas.local", role: "CASHIER" },
+  { email: "store@altas.local", role: "STORE_KEEPER" },
+  { email: "sales@altas.local", role: "SALESPERSON" },
+  { email: "accountant@altas.local", role: "ACCOUNTANT" },
+];
+
 export default function Login() {
   const nav = useNavigate();
   const { login } = useAuth();
@@ -12,6 +22,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const seedPassword = import.meta.env.VITE_SEED_DEFAULT_PASSWORD || "Altas@2026";
 
   const goByRole = (role) => {
     if (role === "CASHIER") return nav("/cashier");
@@ -49,6 +61,19 @@ export default function Login() {
         <p className="muted">Use your company account to continue.</p>
 
         {msg ? <div className="alert login-alert">{msg}</div> : null}
+
+        <div className="card login-demo">
+          <div className="muted">Seeded demo accounts</div>
+          <div className="demo-list">
+            {seededAccounts.map((account) => (
+              <div className="demo-row" key={account.email}>
+                <span className="demo-email">{account.email}</span>
+                <span className="demo-role">{account.role}</span>
+              </div>
+            ))}
+          </div>
+          <div className="muted demo-password">Password: {seedPassword}</div>
+        </div>
 
         <form className="card form" onSubmit={submit}>
           <label className="field">

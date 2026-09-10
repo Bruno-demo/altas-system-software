@@ -7,19 +7,19 @@ const prisma = new PrismaClient();
 
 const PASSWORD = process.env.SEED_DEFAULT_PASSWORD;
 const TARGET = {
-  USERS: 60,
-  EMPLOYEES: 50,
-  SPARE_PRODUCTS: 80,
-  MOTORBIKES: 60,
-  SALES: 50,
-  RETURNS: 50,
-  SHIFTS: 50,
+  USERS: 100,
+  EMPLOYEES: 100,
+  SPARE_PRODUCTS: 100,
+  MOTORBIKES: 100,
+  SALES: 100,
+  RETURNS: 100,
+  SHIFTS: 100,
   ATTENDANCE_DAYS: 45,
-  ADVANCES: 120,
-  PAYROLL_RUNS: 50,
-  EXPENSES: 80,
-  PROMOTIONS: 60,
-  SDC_ROWS: 70,
+  ADVANCES: 100,
+  PAYROLL_RUNS: 100,
+  EXPENSES: 100,
+  PROMOTIONS: 100,
+  SDC_ROWS: 100,
   STOCK_TRANSACTIONS: 180,
   AUDIT_LOGS: 150,
   LOCATIONS: 6,
@@ -138,6 +138,7 @@ async function main() {
     { fullName: "Default Cashier", email: "cashier@altas.local", role: "CASHIER" },
     { fullName: "Default Store Keeper", email: "store@altas.local", role: "STORE_KEEPER" },
     { fullName: "Default Salesperson", email: "sales@altas.local", role: "SALESPERSON" },
+    { fullName: "Default Accountant", email: "accountant@altas.local", role: "ACCOUNTANT" },
   ];
 
   const extraUserCount = Math.max(TARGET.USERS - defaultUsers.length, 0);

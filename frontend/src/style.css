@@ -57,6 +57,45 @@ h1 {
   max-width: 360px;
 }
 
+.login-demo {
+  width: 100%;
+  max-width: 360px;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8f9fb;
+  border: 1px solid #d8dce3;
+}
+
+.demo-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.demo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.demo-email {
+  font-weight: 700;
+  color: #172033;
+}
+
+.demo-role {
+  color: #667085;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.demo-password {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
 .login-shell .form {
   width: 100%;
   max-width: 360px;
