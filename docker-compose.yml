@@ -31,6 +31,10 @@ services:
       NODE_ENV: production
       ERROR_LOG_DIR: /app/backend/logs/errors
       ERROR_LOG_RETENTION_DAYS: ${ERROR_LOG_RETENTION_DAYS:-30}
+      SEED_DEFAULT_PASSWORD: ${SEED_DEFAULT_PASSWORD:-XMoZP1XEN6CO9I4NFps2EwKR611ytgWJg2QvOu7uhphP3MXpF010}
+      ALLOW_PROD_SEED: "true"
+    command: >
+      sh -c "npx prisma migrate deploy --schema=src/prisma/schema.prisma && node src/prisma/seed.js && node src/server.js"
     ports:
       - "${APP_PORT:-5000}:5000"
     volumes:
