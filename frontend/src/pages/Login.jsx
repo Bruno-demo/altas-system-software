@@ -23,7 +23,7 @@ export default function Login() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const seedPassword = import.meta.env.VITE_SEED_DEFAULT_PASSWORD || "Altas@2026";
+  const seedPassword = import.meta.env.VITE_SEED_DEFAULT_PASSWORD || "";
 
   const goByRole = (role) => {
     if (role === "CASHIER") return nav("/cashier");
