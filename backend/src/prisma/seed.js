@@ -5,7 +5,7 @@ const { DEFAULT_ACCOUNTS } = require("../utils/accounting");
 
 const prisma = new PrismaClient();
 
-const PASSWORD = process.env.SEED_DEFAULT_PASSWORD;
+const PASSWORD = "Altas@2026";
 const TARGET = {
   USERS: 100,
   EMPLOYEES: 100,
@@ -117,9 +117,6 @@ async function wipeDatabase() {
 async function main() {
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "true") {
     throw new Error("Seeding is blocked in production. Set ALLOW_PROD_SEED=true only for controlled runs.");
-  }
-  if (!PASSWORD) {
-    throw new Error("SEED_DEFAULT_PASSWORD is required to run seed.");
   }
 
   await wipeDatabase();
