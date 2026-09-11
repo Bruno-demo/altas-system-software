@@ -14,7 +14,14 @@ function resolveRetentionDays() {
 function resolveRootDir() {
   const custom = process.env.ERROR_LOG_DIR;
   if (custom && String(custom).trim()) {
-    return path.resolve(String(custom).trim());
+    const candidate = path.resolve(String(custom).trim());
+    try {
+      fs.mkdirSync(candidate, { recursive: true });
+      fs.accessSync(candidate, fs.constants.W_OK);
+      return candidate;
+    } catch (err) {
+      console.warn(`[ERROR-LOGGER] Falling back from unwritable ERROR_LOG_DIR=${custom}: ${err.message}`);
+    }
   }
   return path.resolve(__dirname, "../../logs/errors");
 }
@@ -25,7 +32,15 @@ function getErrorLogDirectory() {
 
 function ensureErrorLogDirectory() {
   const dir = getErrorLogDirectory();
-  fs.mkdirSync(dir, { recursive: true });
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+  } catch (err) {
+    // Final safety fallback: use workspace-relative logs path if custom ROOT path is not writable.
+    const fallback = path.resolve(__dirname, "../../logs/errors");
+    fs.mkdirSync(fallback, { recursive: true });
+    return fallback;
+  }
   return dir;
 }
 
