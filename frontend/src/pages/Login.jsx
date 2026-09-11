@@ -23,7 +23,7 @@ export default function Login() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const seedPassword = "XMoZP1XEN6CO9I4NFps2EwKR611ytgWJg2QvOu7uhphP3MXpF010";
+  const seedPassword = "Altas@2026";
 
   const goByRole = (role) => {
     if (role === "CASHIER") return nav("/cashier");
